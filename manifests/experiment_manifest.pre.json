@@ -1,0 +1,82 @@
+{
+  "benchmark": {
+    "frozen_task_ids": null,
+    "git_commit": null,
+    "name": "Terminal-Bench",
+    "tag": null,
+    "version": null
+  },
+  "created_at_utc": "2026-09-04T20:59:00Z",
+  "environment": {
+    "os": "Linux-6.18.35-x86_64-with-glibc2.41",
+    "python_version": "3.13.5"
+  },
+  "harness": {
+    "action_mode": "native bash tool-call; default CLI agent mode=confirm",
+    "git_commit": "a83fcae82d2a08f0ee0c688f9d137b3566c097f8",
+    "git_status": null,
+    "local_checkout_verified": false,
+    "major_design_version": "v2",
+    "model_adapter_class": "minisweagent.models.litellm_model.LitellmModel",
+    "name": "mini-SWE-agent",
+    "package_version": "v2.4.6",
+    "release_tag": "v2.4.6",
+    "source_verification": "GitHub v2.4.6 release/tag pages; local clone unavailable due runtime network egress failure",
+    "working_tree_clean": null
+  },
+  "implementation": {
+    "final_manifest_sha256": null,
+    "memory_patch_git_commit": null
+  },
+  "manifest_version": "agent-memory-v0-pre-1",
+  "memory_v0": {
+    "candidate_pool_max": 40,
+    "database": "SQLite FTS5",
+    "evidence_priority": {
+      "OBSERVED": 0.6,
+      "UNVERIFIED": 0.0,
+      "VERIFIED": 1.0
+    },
+    "file_fingerprint_algorithm": "SHA-256",
+    "file_fingerprint_max_bytes": 67108864,
+    "fts_tokenizer": "unicode61",
+    "local_estimator": "canonical UTF-8 bytes: 1 byte = 1 local budget unit",
+    "max_chunk_local_units": 256,
+    "max_selected_per_historical_step": 2,
+    "max_selected_records": 8,
+    "memory_enabled_default": null,
+    "near_duplicate_jaccard_threshold": 0.85,
+    "q_local_top_k": 20,
+    "q_task_top_k": 10,
+    "recent_complete_steps": 4,
+    "retrieval_budget_local_units": 2048,
+    "score_weights": {
+      "evidence_priority": 0.15,
+      "failure_test_match": 0.3,
+      "file_overlap": 0.35,
+      "importance": 0.1,
+      "lexical_rr": 1.0
+    },
+    "tokenizer_hash": null,
+    "tokenizer_repository": "zai-org/GLM-5.3",
+    "tokenizer_revision": null
+  },
+  "model": {
+    "planned_model": "GLM-5.3",
+    "provider_identifier": null,
+    "provider_parameters": null,
+    "reasoning_effort": "maximum supported",
+    "stream": false
+  },
+  "preflight": {
+    "blocking_reason": "Frozen v2.4.6 source and full tag commit verified via GitHub, but shell egress and the connected GitHub repository tool are unavailable to this runtime; therefore no authoritative local checkout/install exists and T10/upstream tests/final freeze cannot be proven.",
+    "compatibility_source_inspection": "PASS",
+    "git_repository_present": false,
+    "litellm_installed": false,
+    "mini_swe_agent_checkout_present": false,
+    "mini_swe_agent_package_installed": false,
+    "phase1_harness_inspection_completed": true,
+    "terminal_bench_installed": false,
+    "working_tree_clean": null
+  }
+}
