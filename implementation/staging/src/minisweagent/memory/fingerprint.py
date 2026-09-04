@@ -64,6 +64,7 @@ def fingerprint(path: str | os.PathLike[str], workspace: str | os.PathLike[str])
         return FileFingerprint(raw_path, "NON_REGULAR", resolved_path=str(resolved))
     if st.st_size > MAX_FILE_BYTES:
         return FileFingerprint(raw_path, "TOO_LARGE", size=st.st_size, resolved_path=str(resolved))
+    # Treat no-readable-bit files as unreadable even when tests execute as root.
     if st.st_mode & 0o444 == 0:
         return FileFingerprint(raw_path, "UNREADABLE", size=st.st_size, resolved_path=str(resolved))
 

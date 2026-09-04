@@ -127,6 +127,7 @@ def retrieve(query: str, state: RetrievalState, budget_tokens: int, *, db_path: 
     add_fts(query, Q_LOCAL_MAX, "local")
     add_fts(state.task_text, Q_TASK_MAX, "task")
 
+    # Supplemental candidate scan is bounded before scoring and only over eligible task-local history.
     supplemental = con.execute(
         f"SELECT * FROM memories WHERE {base_sql} ORDER BY step_id DESC, memory_id ASC LIMIT 200",
         (state.task_id, cutoff),
@@ -194,6 +195,7 @@ def retrieve(query: str, state: RetrievalState, budget_tokens: int, *, db_path: 
             scored.append((score, rec, freshness, meta))
 
     scored.sort(key=lambda x: (-x[0], -x[1].step_id, x[1].memory_id))
+    # Exact and near-duplicate collapse after scoring so the strongest equivalent survives.
     deduped: list[tuple[float, MemoryRecord, str, dict]] = []
     seen_fp: set[str] = set()
     for item in scored:

@@ -64,6 +64,7 @@ def _split_utf8(text: str, max_units: int = MAX_CHUNK_UNITS) -> list[str]:
             out.append("".join(cur))
             cur, used = [], 0
         if n > max_units:
+            # max_units is 256, so this cannot occur for valid Unicode, but keep deterministic behavior.
             continue
         cur.append(ch)
         used += n
