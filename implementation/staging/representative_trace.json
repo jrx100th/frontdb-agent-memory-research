@@ -1,0 +1,143 @@
+{
+  "candidates": [
+    {
+      "eligible_signal": true,
+      "excluded_current_stale_unknown": false,
+      "failure_test_match": 1.0,
+      "file_overlap": 0.0,
+      "freshness": "NOT_APPLICABLE",
+      "local_match": true,
+      "memory_id": 1,
+      "rank": 1,
+      "score": 1.59,
+      "sources": [
+        "local",
+        "supplemental",
+        "task"
+      ],
+      "task_salient_overlap": 3
+    },
+    {
+      "eligible_signal": true,
+      "excluded_current_stale_unknown": false,
+      "failure_test_match": 1.0,
+      "file_overlap": 0.0,
+      "freshness": "NOT_APPLICABLE",
+      "local_match": true,
+      "memory_id": 3,
+      "rank": 2,
+      "score": 1.15,
+      "sources": [
+        "local",
+        "supplemental",
+        "task"
+      ],
+      "task_salient_overlap": 3
+    }
+  ],
+  "filtered": [
+    {
+      "eligible_signal": true,
+      "excluded_current_stale_unknown": false,
+      "failure_test_match": 1.0,
+      "file_overlap": 0.0,
+      "freshness": "NOT_APPLICABLE",
+      "local_match": true,
+      "memory_id": 1,
+      "rank": 1,
+      "score": 1.59,
+      "selected": true,
+      "sources": [
+        "local",
+        "supplemental",
+        "task"
+      ],
+      "task_salient_overlap": 3
+    },
+    {
+      "eligible_signal": true,
+      "excluded_current_stale_unknown": false,
+      "failure_test_match": 1.0,
+      "file_overlap": 0.0,
+      "freshness": "NOT_APPLICABLE",
+      "local_match": true,
+      "memory_id": 3,
+      "rank": 2,
+      "score": 1.15,
+      "selected": true,
+      "sources": [
+        "local",
+        "supplemental",
+        "task"
+      ],
+      "task_salient_overlap": 3
+    }
+  ],
+  "selected": [
+    {
+      "content": "pytest failed: decoder boundary assertion E_DECODER_BOUNDARY",
+      "eligible_signal": true,
+      "excluded_current_stale_unknown": false,
+      "failure_test_match": 1.0,
+      "file_overlap": 0.0,
+      "freshness": "NOT_APPLICABLE",
+      "local_match": true,
+      "memory_id": 1,
+      "rank": 1,
+      "score": 1.59,
+      "sources": [
+        "local",
+        "supplemental",
+        "task"
+      ],
+      "task_salient_overlap": 3
+    },
+    {
+      "content": "decoder boundary assertion passed after changing fixture",
+      "eligible_signal": true,
+      "excluded_current_stale_unknown": false,
+      "failure_test_match": 1.0,
+      "file_overlap": 0.0,
+      "freshness": "NOT_APPLICABLE",
+      "local_match": true,
+      "memory_id": 3,
+      "rank": 2,
+      "score": 1.15,
+      "sources": [
+        "local",
+        "supplemental",
+        "task"
+      ],
+      "task_salient_overlap": 3
+    }
+  ],
+  "serialized_memory_units": 1029,
+  "serialized_records": [
+    {
+      "command": "pytest tests/test_decoder.py",
+      "content": "pytest failed: decoder boundary assertion E_DECODER_BOUNDARY",
+      "file_paths": [],
+      "freshness": "NOT_APPLICABLE",
+      "importance": 2,
+      "memory_id": 1,
+      "memory_type": "ERROR",
+      "outcome": null,
+      "source_ref": null,
+      "step_id": 1,
+      "verification_status": "OBSERVED"
+    },
+    {
+      "command": "pytest tests/test_decoder.py",
+      "content": "decoder boundary assertion passed after changing fixture",
+      "file_paths": [],
+      "freshness": "NOT_APPLICABLE",
+      "importance": 2,
+      "memory_id": 3,
+      "memory_type": "TEST_RESULT",
+      "outcome": null,
+      "source_ref": null,
+      "step_id": 3,
+      "verification_status": "VERIFIED"
+    }
+  ]
+}
