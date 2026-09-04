@@ -1,22 +1,31 @@
-# Immutable Handoff Protocol
+# Durable Agent Memory / Handoff Protocol
 
-The repository, not conversational memory, is canonical.
+GitHub `main` is the durable shared memory. Markdown message files are immutable scientific handoffs. GitHub Issue #1 is the live coordination board.
 
-## Inbox layout
+## Source-of-truth priority
 
-Each receiver has an inbox:
+1. current GitHub `main` HEAD
+2. `state/FROZEN_VARIABLES.md` and experiment manifests
+3. immutable `messages/`
+4. Agent Memory Board Issue #1
+5. active chat context
+6. conversational memory
 
-- `messages/orchestrator/`
-- `messages/chat1_architect/`
-- `messages/chat2_implementer/`
-- `messages/chat3_reviewer/`
-- `messages/chat4_benchmark/`
+If conversational memory conflicts with Git, **GIT WINS** unless the orchestrator explicitly reopens a decision.
 
-A message is an immutable Markdown file. Example:
+## Roles and recipient inboxes
 
-`messages/chat3_reviewer/MSG-000001-chat2-to-chat3-implementation-review.md`
+- `ORCHESTRATOR` -> `messages/orchestrator/`
+- `CHAT1_ARCHITECT` -> `messages/chat1_architect/`
+- `CHAT2_IMPLEMENTER` -> `messages/chat2_implementer/`
+- `CHAT3_REVIEWER` -> `messages/chat3_reviewer/`
+- `CHAT4_BENCHMARK` -> `messages/chat4_benchmark/`
 
-## Required message format
+The directory names the **recipient**. Example: `messages/chat3_reviewer/` contains messages TO Chat 3.
+
+## Current durable message schema
+
+Every new message uses:
 
 ```text
 MESSAGE_ID:
@@ -24,41 +33,85 @@ FROM:
 TO:
 PROJECT_VERSION:
 SOURCE_COMMIT:
-CREATED:
+CREATED_UTC:
 SUBJECT:
 
 SUMMARY:
 
 VERIFIED:
 
-OPEN QUESTIONS:
+EVIDENCE:
 
-REQUESTED ACTION:
+OPEN_QUESTIONS:
 
-DO NOT CHANGE:
+REQUESTED_ACTION:
+
+DO_NOT_CHANGE:
 ```
 
-## Rules
+Messages are UTF-8 Markdown and immutable after commit. If a message is wrong, create a new globally numbered correction message and reference the earlier message ID. Never edit historical scientific meaning.
 
-1. Never edit another role's historical message.
-2. Corrections create a new message with a new message ID.
-3. One significant handoff should be one commit.
-4. Commit SHAs are part of the audit trail.
-5. Never depend on chat memory when canonical repository state exists.
-6. Before working, read `PROJECT_STATE.md` and `FROZEN_VARIABLES.md`.
-7. Read inbox messages newer than your own `LAST_SEEN` commit.
-8. After processing those messages, update only your own `LAST_SEEN` file.
-9. Message numbers are monotonic within each receiver inbox.
-10. Do not rewrite or squash research-history commits unless the orchestrator explicitly orders it.
+### Legacy bootstrap compatibility
 
-## LAST_SEEN semantics
+`messages/orchestrator/MSG-000001-chat2-to-orchestrator-repo-bootstrap.md` predates this schema and remains immutable. The helper recognizes that exact file as grandfathered legacy format. All new messages must use the current schema.
 
-`agents/<role>/LAST_SEEN` contains the commit SHA through which that role has processed its inbox. The bootstrap value of forty zeroes means no inbox commit has yet been acknowledged.
+## Global message IDs
 
-## Commit subjects
+IDs are globally monotonic across every recipient inbox:
 
-- `[ORCH] ...`
-- `[ARCH] ...`
-- `[IMPL] ...`
-- `[REVIEW] ...`
-- `[BENCH] ...`
+```text
+MSG-000001
+MSG-000002
+MSG-000003
+...
+```
+
+Before allocating, scan all `messages/*/MSG-*.md`; use highest existing ID + 1. Duplicate or malformed IDs are invalid.
+
+## LAST_SEEN pointers
+
+Each role owns only its own `agents/<role>/LAST_SEEN`.
+
+Current format:
+
+```text
+LAST_PROCESSED_COMMIT=<40-hex-sha-or-NONE>
+LAST_PROCESSED_MESSAGE=<MSG-ID-or-NONE>
+UPDATED_UTC=<ISO8601-UTC-ending-Z>
+```
+
+The historical forty-zero single-line value is accepted as a read-only legacy sentinel. Only the owning role may migrate its pointer to current format.
+
+## Startup / publish procedure
+
+1. sync/read latest `main`;
+2. read `state/PROJECT_STATE.md`;
+3. read `state/FROZEN_VARIABLES.md`;
+4. read this protocol;
+5. read own LAST_SEEN;
+6. discover/process newer own-inbox messages in ID order;
+7. perform assigned work;
+8. create immutable outgoing messages;
+9. update only own LAST_SEEN;
+10. re-check current remote state before publishing;
+11. never force-push or rewrite published research history.
+
+If concurrent work causes a conflict in `state/`, `architecture/`, or `manifests/`, stop and escalate to the orchestrator. Do not auto-resolve scientific-state conflicts.
+
+## Agent Memory Board — Issue #1
+
+Issue #1 is the live short-handoff layer. Durable scientific state remains in Git. Board comments are append-only in meaning; corrections are new `BMSG-XXXXXX` comments rather than edits.
+
+## Deterministic helper
+
+`scripts/message_bus.py` is stdlib-only and supports:
+
+```text
+validate
+next-id
+inbox ROLE
+status
+mark-seen ROLE COMMIT MESSAGE_ID
+```
+
+`mark-seen` requires `FRONTDB_ROLE` to equal the role whose pointer is being updated, preventing normal helper use from mutating another role's LAST_SEEN.

@@ -1,46 +1,59 @@
 # Research Role Ownership
 
-All roles may read the full repository. Ownership below controls who may directly change canonical material after bootstrap.
+All roles may read the full repository. Ownership controls who may directly mutate role-specific or canonical material.
+
+## Source of truth
+
+1. current GitHub `main` HEAD
+2. `state/FROZEN_VARIABLES.md` and experiment manifests
+3. immutable `messages/`
+4. Agent Memory Board Issue #1
+5. active chat context
+6. conversational memory
+
+If memory conflicts with Git, **GIT WINS** unless the orchestrator explicitly reopens a decision.
 
 ## ORCHESTRATOR
-Owns:
+Owns canonical scientific state:
 - `state/PROJECT_STATE.md`
 - `state/FROZEN_VARIABLES.md`
 - `state/EXPERIMENT_VERSION`
 - `decisions/DECISIONS.md`
+- `agents/orchestrator/LAST_SEEN`
 
-Other roles propose changes through immutable messages.
+Other roles propose canonical-state changes through immutable messages.
 
 ## CHAT1_ARCHITECT
 Owns:
 - `architecture/`
-- `messages/chat1_architect/`
 - `agents/chat1_architect/LAST_SEEN`
 
 ## CHAT2_IMPLEMENTER
 Owns:
 - `implementation/`
 - `tests/`
-- `messages/chat2_implementer/`
+- message-bus helper/tests while assigned
 - `agents/chat2_implementer/LAST_SEEN`
 
 ## CHAT3_REVIEWER
 Owns:
 - review material under `reports/review/`
-- `messages/chat3_reviewer/`
 - `agents/chat3_reviewer/LAST_SEEN`
 
 ## CHAT4_BENCHMARK
 Owns:
-- benchmark configuration/results/reproducibility material
-- `messages/chat4_benchmark/`
+- benchmark/reproducibility material
+- `results/`
 - `agents/chat4_benchmark/LAST_SEEN`
+
+## Message inboxes
+
+`messages/<role>/` is the **recipient inbox**, not sender ownership. Any role may create a new immutable message in the intended recipient's inbox. A role must never edit a historical message to change scientific meaning.
+
+## LAST_SEEN ownership
+
+A role may mutate **only its own** `agents/<role>/LAST_SEEN` file. The current format is documented in `HANDOFF_PROTOCOL.md`. Legacy all-zero pointers are readable migration state and should be converted only by the owning role.
 
 ## Required startup procedure
 
-Before working, every role must:
-1. read `state/PROJECT_STATE.md`;
-2. read `state/FROZEN_VARIABLES.md`;
-3. read its inbox for immutable messages newer than its own `LAST_SEEN` commit;
-4. perform only work consistent with the frozen variables;
-5. after processing inbox messages, update only its own `LAST_SEEN`.
+Before working, every role must read current project/frozen state, the handoff protocol, its own LAST_SEEN, and newer inbox messages. Before publishing, re-check current `main`; never force-push shared research history. Scientific-state conflicts must be escalated to the orchestrator rather than auto-resolved.
