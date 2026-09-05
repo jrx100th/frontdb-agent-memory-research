@@ -8,27 +8,65 @@
   },
   "integration": {
     "branch": "chat2/authoritative-integration-20260905",
-    "candidate_sha": "bb1d85c225798ee249e461bff5a7f841fd57e2a9",
-    "integration_tested_sha": null,
-    "status": "BLOCKED_NO_CREDENTIALS_OR_ROUTE"
+    "candidate_sha": "81b7e326f91e5efdee43cf11349294c088e2731e",
+    "integration_tested_sha": "81b7e326f91e5efdee43cf11349294c088e2731e",
+    "status": "READY_FOR_INDEPENDENT_REVIEW",
+    "frozen_constants_changed": false,
+    "drift_file_list": [
+      ".github/workflows/chat2-authoritative-integration.yml",
+      "implementation/authoritative/provider-constraints.txt",
+      "tests/integration/provider_probe.py",
+      "tests/integration/test_provider_adapter.py"
+    ],
+    "scientific_drift_detected": false
   },
   "model": "GLM-5.3",
   "provider": {
     "route_kind": "TokenRouter-compatible",
-    "real_probe_request_executed": false,
-    "credential_presence": {
-      "api_key": false,
-      "base_url": false,
-      "model_route": false
-    },
-    "real_usage_shape": null,
-    "real_input_mapping": null,
-    "real_output_mapping": null,
-    "real_total_mapping": null,
-    "real_cached_detail": null,
-    "real_reasoning_detail": null,
+    "model_route": "z-ai/glm-5.3-free",
+    "custom_llm_provider": "openai",
+    "litellm_version": "1.99.0",
+    "root_cause": "VERIFIED_PROVIDER_INFERENCE_FAILURE_FIXED_BY_EXPLICIT_OPENAI_PROVIDER",
+    "real_probe_request_executed": true,
+    "outbound_model_verified": true,
+    "response_received": true,
+    "parse_success": true,
     "stream": false,
-    "note": "Controlled probe harness executed, but no real provider request was sent. Mock/provider-boundary accounting tests pass; they do not substitute for real provider evidence."
+    "accounting_status": "COUNTED",
+    "no_local_estimator_substitution": true,
+    "usage_mappings": {
+      "input": "prompt_tokens",
+      "output": "completion_tokens",
+      "total": "total_tokens",
+      "cached": "prompt_tokens_details.cached_tokens",
+      "reasoning": "completion_tokens_details.reasoning_tokens"
+    },
+    "observed_usage": {
+      "input": 186,
+      "output": 50,
+      "total": 236,
+      "cached": 0,
+      "reasoning": 36,
+      "total_consistency": true
+    },
+    "usage_provenance": {
+      "authoritative_source": "artifact 9970944939 provider_probe.json final read",
+      "superseded_continuation_usage": {
+        "input": 187,
+        "output": 78,
+        "total": 265,
+        "cached": 0,
+        "reasoning": 65
+      },
+      "superseded_prior_artifact_summary": {
+        "input": 186,
+        "output": 50,
+        "total": 236,
+        "cached": 0,
+        "reasoning": 37
+      },
+      "discrepancy_note": "Final artifact read reports reasoning_tokens=36; prior continuation evidence and prior artifact summary are preserved only as superseded provenance."
+    }
   },
   "retrieval": {
     "recent_steps": 4,
@@ -52,24 +90,56 @@
   "serialization": {
     "memory_envelope": "HISTORICAL_MEMORY_DATA_V1",
     "canonical_json_sort_keys": true,
-    "canonical_json_separators": [",", ":"],
+    "canonical_json_separators": [
+      ",",
+      ":"
+    ],
     "ensure_ascii": true,
     "local_packing_estimator": "canonical UTF-8 byte = 1 local packing unit"
   },
   "evidence": {
-    "ci_run": 33962038284,
-    "ci_job": 101295476028,
-    "ci_head_sha": "bb1d85c225798ee249e461bff5a7f841fd57e2a9",
+    "ci_run": 33970854793,
+    "ci_job": 101318983117,
+    "ci_head_sha": "81b7e326f91e5efdee43cf11349294c088e2731e",
     "ci_conclusion": "success",
+    "artifact_id": 9970944939,
+    "artifact_name": "authoritative-integration-evidence",
+    "current_api_digest": "339dc5ebf443df4f80d174b574d7a605c1b0a5e13cd767820cdd6af8792e0880",
+    "historical_upload_log_digest": "31b931226ee1bbddb1cd4dc67e395a32821f75323faa79a39e03fa854a596426",
+    "artifact_digest_status": "ARTIFACT_DIGEST_LOG_METADATA_DISCREPANCY",
+    "test_commands": {
+      "integrated_staging": {
+        "passed": 131,
+        "failed": 0
+      },
+      "provider_adapter_subset": {
+        "passed": 5,
+        "failed": 0
+      },
+      "regression_suite": {
+        "passed": 32,
+        "failed": 0
+      },
+      "upstream": {
+        "passed": 606,
+        "failed": 0,
+        "skipped": 13,
+        "xfailed": 0
+      }
+    },
     "strong_t10": "PASS",
     "integrated_t1_t10": "PASS",
-    "upstream_tests": {"passed": 606, "failed": 0, "skipped": 13, "xfailed": 0},
-    "cleared_regression_matrix": {"passed": 133, "failed": 0, "skipped": 0},
     "compileall": "PASS",
     "sqlite_fts5": "PASS",
     "sqlite_integrity_check": "ok",
     "zero_extra_llm_calls": "PASS",
-    "real_provider_gate": "BLOCKED_NO_CREDENTIALS_OR_ROUTE"
+    "provider_calls": {
+      "attempted": 1,
+      "countable": 1,
+      "extra": 0
+    },
+    "real_provider_gate": "PASS",
+    "targeted_secret_audit": "NO_SECRET_EXPOSURE_FOUND"
   },
   "performance_seconds": {
     "ordinary_5_rows": 0.003702,
@@ -77,6 +147,29 @@
     "1000_rows": 0.021594,
     "10000_rows": 0.172598
   },
+  "performance_reservation": {
+    "level": "HIGH",
+    "reason": "Historical ~8.91 s 10k exact-duplicate adversarial retrieval stress remains a performance risk; newer ordinary results do not clear it."
+  },
+  "history": [
+    {
+      "state": "BLOCKED_NO_CREDENTIALS_OR_ROUTE",
+      "note": "Historical authoritative-integration candidate state preserved; no real provider request was available at that stage."
+    },
+    {
+      "state": "BLOCKED_PROVIDER_ACCOUNTING_INVALID",
+      "note": "Historical provider-accounting blocker preserved."
+    },
+    {
+      "state": "PROVIDER_INFERENCE_FAILURE",
+      "note": "Raw LiteLLM could not infer the provider for z-ai/glm-5.3-free before explicit custom_llm_provider='openai'."
+    },
+    {
+      "state": "PROVIDER_ADAPTER_VALIDATED",
+      "note": "Explicit custom_llm_provider='openai' validated while preserving exact outbound model z-ai/glm-5.3-free."
+    }
+  ],
   "terminal_bench": "NOT_RUN",
-  "primary_metric": "provider-reported total tokens / successful tasks"
+  "primary_metric": "provider-reported total tokens / successful tasks",
+  "primary_metric_changed": false
 }
