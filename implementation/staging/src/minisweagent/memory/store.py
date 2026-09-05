@@ -11,6 +11,7 @@ import unicodedata
 from .fingerprint import fingerprint
 
 MAX_CHUNK_UNITS = 256
+COMMAND_BOUNDARY_NOISE = " \t\n"
 
 
 @dataclass(frozen=True)
@@ -94,10 +95,27 @@ def _policy(event: MemoryEvent) -> tuple[str, str, int]:
     return mtype, event.verification_status or "OBSERVED", event.importance or 1
 
 
-def _normalize_command(value: str | None) -> str:
-    if not value:
+def _command_lookup_key(value: str | None) -> str:
+    """Conservative failed-command lookup key.
+
+    Only ASCII shell boundary transport noise proven equivalent by the staging
+    Bash tests is removed. Internal code points, Unicode compatibility forms,
+    quoting, punctuation, and Unicode whitespace are preserved byte-for-byte.
+    """
+    if value is None:
         return ""
-    return unicodedata.normalize("NFKC", value).strip()
+    return value.strip(COMMAND_BOUNDARY_NOISE)
+
+
+def _normalize_command(value: str | None) -> str:
+    # Backward-compatible internal name for the persisted command_norm lookup key.
+    return _command_lookup_key(value)
+
+
+def _raw_command_sha256(value: str | None) -> str:
+    if value is None:
+        return ""
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def _normalize_search_text(*parts: str | None) -> str:
@@ -130,7 +148,8 @@ def _scientific_key(
         "memory_type": memory_type,
         "verification_status": verification_status,
         "outcome": (outcome or "").strip().casefold(),
-        "command_norm": _normalize_command(command),
+        "command_lookup_key": _command_lookup_key(command),
+        "raw_command_sha256": _raw_command_sha256(command),
         "file_paths": _canonical_file_paths(file_paths),
         "file_fingerprints": _canonical_file_fingerprints(file_fingerprints),
     }
@@ -186,11 +205,14 @@ class MemoryStore:
         return con
 
     def _backfill_derived(self, con: sqlite3.Connection) -> None:
-        rows = con.execute("SELECT * FROM memories WHERE scientific_key='' ").fetchall()
+        # Recompute all persisted derived identities so databases written under
+        # the previous NFKC command rule migrate deterministically in place.
+        rows = con.execute("SELECT * FROM memories").fetchall()
+        rebuild_norm_fts = False
         for row in rows:
             paths = list(json.loads(row["file_paths"]))
             fps = list(json.loads(row["file_fingerprints"]))
-            command_norm = _normalize_command(row["command"])
+            command_norm = _command_lookup_key(row["command"])
             search_norm = _normalize_search_text(row["content"], row["command"], row["source_ref"])
             key = _scientific_key(
                 content_fingerprint=row["fingerprint"],
@@ -201,13 +223,20 @@ class MemoryStore:
                 file_paths=paths,
                 file_fingerprints=fps,
             )
-            con.execute(
-                "UPDATE memories SET command_norm=?, search_norm=?, scientific_key=? WHERE memory_id=?",
-                (command_norm, search_norm, key, row["memory_id"]),
-            )
+            if search_norm != row["search_norm"]:
+                rebuild_norm_fts = True
+            if (
+                command_norm != row["command_norm"]
+                or search_norm != row["search_norm"]
+                or key != row["scientific_key"]
+            ):
+                con.execute(
+                    "UPDATE memories SET command_norm=?, search_norm=?, scientific_key=? WHERE memory_id=?",
+                    (command_norm, search_norm, key, row["memory_id"]),
+                )
         memory_count = con.execute("SELECT count(*) FROM memories").fetchone()[0]
         norm_count = con.execute("SELECT count(*) FROM memories_norm_fts").fetchone()[0]
-        if rows or memory_count != norm_count:
+        if rebuild_norm_fts or memory_count != norm_count:
             con.execute("DELETE FROM memories_norm_fts")
             con.execute(
                 "INSERT INTO memories_norm_fts(rowid,search_norm,task_id,memory_id) "
@@ -228,7 +257,7 @@ class MemoryStore:
             for idx, chunk in enumerate(chunks):
                 content_fp = hashlib.sha256(chunk.encode("utf-8")).hexdigest()
                 source_ref = event.source_ref if len(chunks) == 1 else f"{event.source_ref or 'event'}#chunk={idx}"
-                command_norm = _normalize_command(event.command)
+                command_norm = _command_lookup_key(event.command)
                 search_norm = _normalize_search_text(chunk, event.command, source_ref)
                 scientific_key = _scientific_key(
                     content_fingerprint=content_fp,
