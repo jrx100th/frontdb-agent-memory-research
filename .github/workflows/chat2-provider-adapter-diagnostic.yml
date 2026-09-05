@@ -1,0 +1,71 @@
+name: chat2-provider-adapter-diagnostic
+
+on:
+  push:
+    branches:
+      - chat2/provider-adapter-diagnostic-20260905
+
+permissions:
+  contents: read
+
+jobs:
+  provider-adapter-diagnostic:
+    runs-on: ubuntu-24.04
+    env:
+      MSWEA_SILENT_STARTUP: "1"
+      MSWEA_GLOBAL_CONFIG_DIR: ${{ github.workspace }}/.mswea-config
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout diagnostic research branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Checkout exact authoritative mini-SWE-agent upstream
+        uses: actions/checkout@v4
+        with:
+          repository: SWE-agent/mini-swe-agent
+          ref: a83fcae82d2a08f0ee0c688f9d137b3566c097f8
+          fetch-depth: 0
+          path: upstream-pristine
+
+      - name: Verify upstream and apply unchanged candidate overlay
+        run: |
+          set -euo pipefail
+          test "$(git -C upstream-pristine rev-parse HEAD)" = "a83fcae82d2a08f0ee0c688f9d137b3566c097f8"
+          test "$(git -C upstream-pristine describe --tags --exact-match HEAD)" = "v2.4.6"
+          cp -a upstream-pristine upstream-patched
+          python implementation/authoritative/apply_integration.py --upstream upstream-patched
+
+      - name: Install same upstream full dependency surface
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --upgrade pip
+          python -m pip install --disable-pip-version-check -e 'upstream-patched[full]'
+          python - <<'PY'
+          import importlib.metadata
+          print('litellm_version=' + importlib.metadata.version('litellm'))
+          print('openai_version=' + importlib.metadata.version('openai'))
+          PY
+
+      - name: Run direct OpenAI and LiteLLM provider-isolation controls
+        env:
+          PYTHONPATH: upstream-patched/src
+          TOKENROUTER_API_KEY: ${{ secrets.TOKENROUTER_API_KEY }}
+          TOKENROUTER_BASE_URL: ${{ secrets.TOKENROUTER_BASE_URL }}
+          TOKENROUTER_MODEL: ${{ secrets.TOKENROUTER_MODEL }}
+        run: |
+          set -euo pipefail
+          mkdir -p integration_artifacts
+          python tests/integration/provider_adapter_diagnostic.py | tee integration_artifacts/provider-adapter-diagnostic.log
+
+      - name: Upload sanitized diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-adapter-diagnostic-evidence
+          path: integration_artifacts
+          if-no-files-found: error
