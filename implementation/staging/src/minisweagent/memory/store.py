@@ -6,10 +6,12 @@ from typing import Any
 import hashlib
 import json
 import sqlite3
+import unicodedata
 
 from .fingerprint import fingerprint
 
 MAX_CHUNK_UNITS = 256
+
 
 @dataclass(frozen=True)
 class MemoryRecord:
@@ -29,6 +31,7 @@ class MemoryRecord:
     file_fingerprints: tuple[dict, ...]
     supersedes: int | None
     invalidated_by: int | None
+
 
 @dataclass
 class MemoryEvent:
@@ -64,7 +67,6 @@ def _split_utf8(text: str, max_units: int = MAX_CHUNK_UNITS) -> list[str]:
             out.append("".join(cur))
             cur, used = [], 0
         if n > max_units:
-            # max_units is 256, so this cannot occur for valid Unicode, but keep deterministic behavior.
             continue
         cur.append(ch)
         used += n
@@ -92,27 +94,125 @@ def _policy(event: MemoryEvent) -> tuple[str, str, int]:
     return mtype, event.verification_status or "OBSERVED", event.importance or 1
 
 
+def _normalize_command(value: str | None) -> str:
+    if not value:
+        return ""
+    return unicodedata.normalize("NFKC", value).strip()
+
+
+def _normalize_search_text(*parts: str | None) -> str:
+    joined = " ".join(p for p in parts if p)
+    return " ".join(unicodedata.normalize("NFKC", joined).casefold().split())
+
+
+def _canonical_file_paths(paths: list[str] | tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(sorted(dict.fromkeys(str(p) for p in paths)))
+
+
+def _canonical_file_fingerprints(fps: list[dict] | tuple[dict, ...]) -> tuple[str, ...]:
+    return tuple(
+        sorted(json.dumps(fp, sort_keys=True, separators=(",", ":"), ensure_ascii=True) for fp in fps)
+    )
+
+
+def _scientific_key(
+    *,
+    content_fingerprint: str,
+    memory_type: str,
+    verification_status: str,
+    outcome: str | None,
+    command: str | None,
+    file_paths: list[str] | tuple[str, ...],
+    file_fingerprints: list[dict] | tuple[dict, ...],
+) -> str:
+    payload = {
+        "content_fingerprint": content_fingerprint,
+        "memory_type": memory_type,
+        "verification_status": verification_status,
+        "outcome": (outcome or "").strip().casefold(),
+        "command_norm": _normalize_command(command),
+        "file_paths": _canonical_file_paths(file_paths),
+        "file_fingerprints": _canonical_file_fingerprints(file_fingerprints),
+    }
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
 def _row_to_record(row: sqlite3.Row) -> MemoryRecord:
     return MemoryRecord(
-        memory_id=row["memory_id"], task_id=row["task_id"], step_id=row["step_id"], memory_type=row["memory_type"],
-        content=row["content"], source_ref=row["source_ref"], file_paths=tuple(json.loads(row["file_paths"])),
-        command=row["command"], outcome=row["outcome"], verification_status=row["verification_status"],
-        importance=row["importance"], token_count=row["token_count"], fingerprint=row["fingerprint"],
-        file_fingerprints=tuple(json.loads(row["file_fingerprints"])), supersedes=row["supersedes"],
+        memory_id=row["memory_id"],
+        task_id=row["task_id"],
+        step_id=row["step_id"],
+        memory_type=row["memory_type"],
+        content=row["content"],
+        source_ref=row["source_ref"],
+        file_paths=tuple(json.loads(row["file_paths"])),
+        command=row["command"],
+        outcome=row["outcome"],
+        verification_status=row["verification_status"],
+        importance=row["importance"],
+        token_count=row["token_count"],
+        fingerprint=row["fingerprint"],
+        file_fingerprints=tuple(json.loads(row["file_fingerprints"])),
+        supersedes=row["supersedes"],
         invalidated_by=row["invalidated_by"],
     )
+
 
 class MemoryStore:
     def __init__(self, db_path: str | Path):
         self.db_path = str(db_path)
         schema = Path(__file__).with_name("schema.sql").read_text()
         with self.connect() as con:
+            exists = con.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='memories'"
+            ).fetchone()
+            if exists:
+                columns = {row["name"] for row in con.execute("PRAGMA table_info(memories)")}
+                additions = {
+                    "command_norm": "TEXT NOT NULL DEFAULT ''",
+                    "search_norm": "TEXT NOT NULL DEFAULT ''",
+                    "scientific_key": "TEXT NOT NULL DEFAULT ''",
+                }
+                for name, ddl in additions.items():
+                    if name not in columns:
+                        con.execute(f"ALTER TABLE memories ADD COLUMN {name} {ddl}")
             con.executescript(schema)
+            self._backfill_derived(con)
 
     def connect(self) -> sqlite3.Connection:
         con = sqlite3.connect(self.db_path)
         con.row_factory = sqlite3.Row
         return con
+
+    def _backfill_derived(self, con: sqlite3.Connection) -> None:
+        rows = con.execute("SELECT * FROM memories WHERE scientific_key='' ").fetchall()
+        for row in rows:
+            paths = list(json.loads(row["file_paths"]))
+            fps = list(json.loads(row["file_fingerprints"]))
+            command_norm = _normalize_command(row["command"])
+            search_norm = _normalize_search_text(row["content"], row["command"], row["source_ref"])
+            key = _scientific_key(
+                content_fingerprint=row["fingerprint"],
+                memory_type=row["memory_type"],
+                verification_status=row["verification_status"],
+                outcome=row["outcome"],
+                command=row["command"],
+                file_paths=paths,
+                file_fingerprints=fps,
+            )
+            con.execute(
+                "UPDATE memories SET command_norm=?, search_norm=?, scientific_key=? WHERE memory_id=?",
+                (command_norm, search_norm, key, row["memory_id"]),
+            )
+        memory_count = con.execute("SELECT count(*) FROM memories").fetchone()[0]
+        norm_count = con.execute("SELECT count(*) FROM memories_norm_fts").fetchone()[0]
+        if rows or memory_count != norm_count:
+            con.execute("DELETE FROM memories_norm_fts")
+            con.execute(
+                "INSERT INTO memories_norm_fts(rowid,search_norm,task_id,memory_id) "
+                "SELECT memory_id,search_norm,task_id,memory_id FROM memories"
+            )
 
     def store(self, event: MemoryEvent | dict[str, Any]) -> list[MemoryRecord]:
         if isinstance(event, dict):
@@ -128,13 +228,41 @@ class MemoryStore:
             for idx, chunk in enumerate(chunks):
                 content_fp = hashlib.sha256(chunk.encode("utf-8")).hexdigest()
                 source_ref = event.source_ref if len(chunks) == 1 else f"{event.source_ref or 'event'}#chunk={idx}"
+                command_norm = _normalize_command(event.command)
+                search_norm = _normalize_search_text(chunk, event.command, source_ref)
+                scientific_key = _scientific_key(
+                    content_fingerprint=content_fp,
+                    memory_type=mtype,
+                    verification_status=verification,
+                    outcome=event.outcome,
+                    command=event.command,
+                    file_paths=paths,
+                    file_fingerprints=file_fps,
+                )
                 cur = con.execute(
                     """INSERT INTO memories(task_id,step_id,memory_type,content,source_ref,file_paths,command,outcome,
-                       verification_status,importance,token_count,fingerprint,file_fingerprints,supersedes,invalidated_by)
-                       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)""",
-                    (event.task_id, event.step_id, mtype, chunk, source_ref, json.dumps(paths, separators=(",", ":"), ensure_ascii=True),
-                     event.command, event.outcome, verification, importance, local_units(chunk), content_fp,
-                     json.dumps(file_fps, sort_keys=True, separators=(",", ":"), ensure_ascii=True), event.supersedes),
+                       verification_status,importance,token_count,fingerprint,file_fingerprints,command_norm,search_norm,
+                       scientific_key,supersedes,invalidated_by)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)""",
+                    (
+                        event.task_id,
+                        event.step_id,
+                        mtype,
+                        chunk,
+                        source_ref,
+                        json.dumps(paths, separators=(",", ":"), ensure_ascii=True),
+                        event.command,
+                        event.outcome,
+                        verification,
+                        importance,
+                        local_units(chunk),
+                        content_fp,
+                        json.dumps(file_fps, sort_keys=True, separators=(",", ":"), ensure_ascii=True),
+                        command_norm,
+                        search_norm,
+                        scientific_key,
+                        event.supersedes,
+                    ),
                 )
                 new_id = int(cur.lastrowid)
                 if event.supersedes is not None:

@@ -9,6 +9,7 @@ import stat
 MAX_FILE_BYTES = 64 * 1024 * 1024
 _READ_CHUNK = 1024 * 1024
 
+
 @dataclass(frozen=True)
 class FileFingerprint:
     path: str
@@ -33,6 +34,21 @@ def _same_identity(a: os.stat_result, b: os.stat_result) -> bool:
     return (a.st_dev, a.st_ino) == (b.st_dev, b.st_ino)
 
 
+def _path_guard(candidate: Path) -> tuple[os.stat_result, str | None]:
+    lst = candidate.lstat()
+    raw_link = os.readlink(candidate) if stat.S_ISLNK(lst.st_mode) else None
+    return lst, raw_link
+
+
+def _same_path_guard(
+    before: tuple[os.stat_result, str | None], after: tuple[os.stat_result, str | None]
+) -> bool:
+    a, a_link = before
+    b, b_link = after
+    stable_fields = ("st_mode", "st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+    return a_link == b_link and all(getattr(a, f) == getattr(b, f) for f in stable_fields)
+
+
 def fingerprint(path: str | os.PathLike[str], workspace: str | os.PathLike[str]) -> FileFingerprint:
     raw_path = str(path)
     try:
@@ -46,17 +62,18 @@ def fingerprint(path: str | os.PathLike[str], workspace: str | os.PathLike[str])
     if not candidate.is_absolute():
         candidate = root / candidate
     try:
+        path_guard_before = _path_guard(candidate)
+    except FileNotFoundError:
+        return FileFingerprint(raw_path, "MISSING")
+    except OSError:
+        return FileFingerprint(raw_path, "UNREADABLE")
+
+    try:
         resolved = candidate.resolve(strict=False)
     except (OSError, RuntimeError):
         return FileFingerprint(raw_path, "UNREADABLE")
     if not _inside(root, resolved):
         return FileFingerprint(raw_path, "OUTSIDE_SCOPE", resolved_path=str(resolved))
-    try:
-        lst = candidate.lstat()
-    except FileNotFoundError:
-        return FileFingerprint(raw_path, "MISSING", resolved_path=str(resolved))
-    except OSError:
-        return FileFingerprint(raw_path, "UNREADABLE", resolved_path=str(resolved))
 
     try:
         st = candidate.stat()
@@ -68,7 +85,6 @@ def fingerprint(path: str | os.PathLike[str], workspace: str | os.PathLike[str])
         return FileFingerprint(raw_path, "NON_REGULAR", resolved_path=str(resolved))
     if st.st_size > MAX_FILE_BYTES:
         return FileFingerprint(raw_path, "TOO_LARGE", size=st.st_size, resolved_path=str(resolved))
-    # Treat no-readable-bit files as unreadable even when tests execute as root.
     if st.st_mode & 0o444 == 0:
         return FileFingerprint(raw_path, "UNREADABLE", size=st.st_size, resolved_path=str(resolved))
 
@@ -103,11 +119,9 @@ def fingerprint(path: str | os.PathLike[str], workspace: str | os.PathLike[str])
     if any(getattr(pre, f) != getattr(post, f) for f in stable_fields):
         return FileFingerprint(raw_path, "UNSTABLE", size=post.st_size, resolved_path=str(resolved))
 
-    # Revalidate the pathname after hashing.  A stable open fd is insufficient:
-    # a symlink/path can be retargeted while the old inode remains unchanged.
     try:
         current_resolved = candidate.resolve(strict=True)
-        current_lst = candidate.lstat()
+        path_guard_after = _path_guard(candidate)
         current_st = candidate.stat()
     except (FileNotFoundError, OSError, RuntimeError):
         return FileFingerprint(raw_path, "UNSTABLE", size=post.st_size, resolved_path=str(resolved))
@@ -115,7 +129,7 @@ def fingerprint(path: str | os.PathLike[str], workspace: str | os.PathLike[str])
         return FileFingerprint(raw_path, "UNSTABLE", size=post.st_size, resolved_path=str(current_resolved))
     if current_resolved != resolved:
         return FileFingerprint(raw_path, "UNSTABLE", size=post.st_size, resolved_path=str(current_resolved))
-    if not _same_identity(lst, current_lst):
+    if not _same_path_guard(path_guard_before, path_guard_after):
         return FileFingerprint(raw_path, "UNSTABLE", size=post.st_size, resolved_path=str(current_resolved))
     if not _same_identity(post, current_st):
         return FileFingerprint(raw_path, "UNSTABLE", size=post.st_size, resolved_path=str(current_resolved))
