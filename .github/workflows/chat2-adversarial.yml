@@ -1,4 +1,5 @@
 name: chat2-adversarial
+# This push-only workflow also provides a committed-state rerun gate after source fixes land.
 
 on:
   push:
