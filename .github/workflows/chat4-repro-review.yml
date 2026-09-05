@@ -1,0 +1,155 @@
+name: chat4-repro-review
+
+on:
+  push:
+    branches:
+      - chat4/repro-review-20260906
+
+permissions:
+  contents: read
+
+jobs:
+  independent-repro:
+    runs-on: ubuntu-24.04
+    env:
+      MSWEA_SILENT_STARTUP: "1"
+      MSWEA_GLOBAL_CONFIG_DIR: ${{ github.workspace }}/.mswea-config
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout review branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify exact reviewed scientific object and review-only drift
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "ff6a1303acb865c0e0689a18eb7fceb7af4e0cdc"
+          test "$(git diff --name-only ff6a1303acb865c0e0689a18eb7fceb7af4e0cdc..HEAD)" = ".github/workflows/chat4-repro-review.yml"
+          mapfile -t changed < <(git diff --name-only 81b7e326f91e5efdee43cf11349294c088e2731e..ff6a1303acb865c0e0689a18eb7fceb7af4e0cdc)
+          printf '%s\n' "${changed[@]}"
+          expected=(
+            .github/workflows/chat2-authoritative-integration.yml
+            implementation/authoritative/apply_condition_runner.py
+            tests/integration/test_condition_runner.py
+          )
+          test "${#changed[@]}" -eq 3
+          for i in 0 1 2; do test "${changed[$i]}" = "${expected[$i]}"; done
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Checkout exact mini-SWE-agent upstream
+        uses: actions/checkout@v4
+        with:
+          repository: SWE-agent/mini-swe-agent
+          ref: a83fcae82d2a08f0ee0c688f9d137b3566c097f8
+          fetch-depth: 0
+          path: upstream-pristine
+
+      - name: Verify upstream identity
+        run: |
+          set -euo pipefail
+          test "$(git -C upstream-pristine rev-parse HEAD)" = "a83fcae82d2a08f0ee0c688f9d137b3566c097f8"
+          test "$(git -C upstream-pristine describe --tags --exact-match HEAD)" = "v2.4.6"
+          test "$(git -C upstream-pristine hash-object src/minisweagent/agents/default.py)" = "ca310e37d7c61888c576f73f5e1790ac769407b1"
+          test "$(git -C upstream-pristine hash-object src/minisweagent/models/litellm_model.py)" = "84b5d548df0e10cbe820862399379bbde69a6fa8"
+          test "$(git -C upstream-pristine hash-object src/minisweagent/models/utils/retry.py)" = "055d4b6fd4f57c1420dfa7622a8fe24148354548"
+          test "$(git -C upstream-pristine hash-object src/minisweagent/models/utils/actions_toolcall.py)" = "8209113c4a1663d34468be6106b5661ec9e0be62"
+
+      - name: Apply baseline integration and exact condition runner
+        run: |
+          set -euo pipefail
+          cp -a upstream-pristine upstream-patched
+          python implementation/authoritative/apply_integration.py --upstream upstream-patched
+          python implementation/authoritative/apply_condition_runner.py --upstream upstream-patched
+          git -C upstream-patched diff --check
+          mkdir -p chat4_repro_artifacts
+          git -C upstream-patched diff --binary > chat4_repro_artifacts/patched.diff
+          sha256sum chat4_repro_artifacts/patched.diff > chat4_repro_artifacts/patched.diff.sha256
+
+      - name: Install pinned runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --upgrade pip
+          python -m pip install --disable-pip-version-check -c implementation/authoritative/provider-constraints.txt -e 'upstream-patched[full]'
+          python - <<'PY' | tee chat4_repro_artifacts/versions.txt
+          import importlib.metadata
+          print('litellm=' + importlib.metadata.version('litellm'))
+          print('openai=' + importlib.metadata.version('openai'))
+          assert importlib.metadata.version('litellm') == '1.99.0'
+          PY
+
+      - name: Independent condition purity reproduction
+        env:
+          PYTHONPATH: upstream-patched/src
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/integration/test_condition_runner.py --junitxml=chat4_repro_artifacts/condition-purity.xml
+
+      - name: Independent provider accounting reproduction
+        env:
+          PYTHONPATH: upstream-patched/src
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/integration/test_provider_accounting.py --junitxml=chat4_repro_artifacts/provider-accounting.xml
+
+      - name: Independent integrated memory regression reproduction
+        env:
+          PYTHONPATH: upstream-patched/src
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/integration/test_integrated_memory.py --junitxml=chat4_repro_artifacts/integrated-memory.xml
+
+      - name: Independent Strong T10 reproduction
+        run: |
+          set -euo pipefail
+          python tests/integration/run_strong_t10.py --pristine upstream-pristine --patched upstream-patched --out chat4_repro_artifacts
+          python - <<'PY'
+          import json
+          d=json.load(open('chat4_repro_artifacts/strong_t10.json'))
+          assert d == {
+            'PASS': True,
+            'context_disabled': True,
+            'db_connections_disabled': True,
+            'db_writes_disabled': True,
+            'fingerprints_disabled': True,
+            'provider_config_identical': True,
+            'provider_messages_identical': True,
+            'retrieval_disabled': True,
+            'runtime_init_disabled': True,
+            'synthetic_message_disabled': True,
+            'tool_structure_identical': True,
+          }
+          print('STRONG_T10_REPRO=PASS')
+          PY
+
+      - name: Adversarial static invariants
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('upstream-patched/src/minisweagent/agents/default.py').read_text()
+          r=Path('upstream-patched/src/minisweagent/memory/retrieve.py').read_text()
+          assert "self._benchmark_condition in {'C', 'D'}" in p
+          assert "if self._benchmark_condition == 'B'" in p
+          assert "ranking_policy = 'lexical' if self._benchmark_condition == 'D' else 'structured'" in p
+          assert "if ranking_policy == 'structured':" in r
+          assert "score = lexical_rr" in r
+          assert "if ranking_policy == 'lexical' and score <= 0.0:" in r
+          print('ADVERSARIAL_STATIC_INVARIANTS=PASS')
+          PY
+
+      - name: Compile scientific path
+        run: |
+          set -euo pipefail
+          python -m compileall -q upstream-patched/src implementation/authoritative tests/integration
+
+      - name: Upload independent Chat4 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-repro-review-evidence
+          path: chat4_repro_artifacts
+          if-no-files-found: error
