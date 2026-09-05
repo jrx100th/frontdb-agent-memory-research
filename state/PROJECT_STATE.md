@@ -5,8 +5,12 @@ Agent Memory Efficiency Experiment
 
 ## STATUS
 V0 architecture frozen.
-Staging implementation is **CLEARED FOR AUTHORITATIVE INTEGRATION WITH RESERVATIONS** by independent Chat3 review.
-Implementation is still **NOT integrated** into the authoritative mini-SWE-agent checkout.
+Staging independently cleared.
+Authoritative mini-SWE-agent v2.4.6 integration candidate is implemented and locally validated at `bb1d85c225798ee249e461bff5a7f841fd57e2a9`.
+
+The experiment is **BLOCKED** on the controlled real GLM-5.3 / TokenRouter-compatible per-attempt provider-usage gate.
+
+No final `INTEGRATION_TESTED_SHA` is claimed.
 
 ## HARNESS
 mini-SWE-agent v2.4.6
@@ -25,47 +29,42 @@ Terminal-Bench 3.0
 ## PRIMARY METRIC
 provider-reported total tokens / successfully solved tasks
 
-## CURRENT VERIFIED STAGING EVIDENCE
-- Chat2 exact repair CI at `f7bd4125c463f3d79c4e0094fdedca7c86680b06`: 133 pytest cases PASS, 0 fail, 0 skip; compileall PASS; SQLite FTS5 PASS; SQLite `integrity_check=ok`.
-- Focused independent Chat3 command-equivalence clearance: PASS_WITH_RESERVATIONS.
-- Independent reviewer CI run `33959539227` / job `101288875042`: 21/21 new focused command cases PASS, 20/20 command regressions PASS, 21/21 previously-cleared retrieval/freshness spot checks PASS.
-- C03 shell-distinct command-equivalence defect is cleared.
-- Previously-cleared R01/R05/R06B/R11/R13/R17/R27 and A03/A07/A08/A09-A12 remain cleared for staging scope.
-- Frozen experimental constants unchanged.
+## LOCALLY VERIFIED AUTHORITATIVE INTEGRATION EVIDENCE
+- exact upstream v2.4.6 identity at `a83fcae82d2a08f0ee0c688f9d137b3566c097f8` verified;
+- repaired authoritative CI run `33962038284` / job `101295476028` completed successfully at candidate SHA `bb1d85c225798ee249e461bff5a7f841fd57e2a9`;
+- strong T10 PASS: pristine upstream vs patched `memory_enabled=false` provider request/config/tool structure equivalent, with zero memory runtime/DB/fingerprint/retrieval/context/synthetic-message side effects;
+- integrated T1-T10 PASS;
+- authoritative upstream suite: 606 passed, 0 failed, 13 skipped, 0 xfailed;
+- integrated cleared regression matrix: 133 passed, 0 failed, 0 skipped;
+- provider-attempt boundary and controlled mock retry/parse-failure accounting PASS; missing/malformed usage fails closed and no local estimator is substituted;
+- zero extra LLM calls PASS;
+- integrated retrieval profile recorded: ~5 rows `0.003702 s`, ~100 `0.004949 s`, ~1000 `0.021594 s`, ~10000 `0.172598 s` for that profile distribution;
+- frozen experimental constants unchanged.
 
-## AUTHORIZATION
-**PROCEED TO AUTHORITATIVE INTEGRATION** of the cleared staging implementation into exact mini-SWE-agent v2.4.6 at upstream commit `a83fcae82d2a08f0ee0c688f9d137b3566c097f8`.
+## SUPERSEDED DISCOVERY RUN
+Run `33961129462` at `a965157dd6c5c88b604fa1f12da116ba97f0ed66` is not final scientific evidence. It exposed two patch-caused upstream regressions and lacked a real provider route. Those regressions were repaired before the full rerun above.
 
-The integration gate must include:
-- integrated T1-T10;
-- strong T10 native disabled-path equivalence;
-- upstream mini-SWE-agent regression tests;
-- provider-attempt usage capture/aggregation integration;
-- GLM/TokenRouter usage-shape validation;
-- retrieval-latency profiling, especially the previously observed ~8.91 s / ~10k lexical-match stress case.
+## BLOCKED / NOT VERIFIED
+- the controlled real TokenRouter-compatible GLM-5.3 probe did not issue an API request because its environment lacked configured API key, base URL, and model route;
+- real per-attempt provider usage object shape and mapping remain UNVERIFIED;
+- provider input/output/total/cached/reasoning field behavior remains UNVERIFIED on the real route;
+- `integration_tested_sha` remains null / NOT CLAIMED;
+- independent Chat3 authoritative-integration review is deferred until the real-provider gate resolves.
 
-## RESERVATIONS CARRIED INTO INTEGRATION
-- HIGH PERFORMANCE RISK: large same-term lexical-match histories; ~8.91 s observed at ~10k matches in staging stress testing.
-- malformed legacy JSON remains a fail-loud migration robustness risk.
-- provider-attempt aggregation and actual GLM/TokenRouter usage mapping remain integration gates.
-- baseline equivalence remains unverified until strong T10 passes.
+## PERFORMANCE RESERVATION
+- prior ~8.91 s / ~10k exact-duplicate adversarial stress remains **HIGH PERFORMANCE RISK**;
+- the newer ~0.172598 s / 10k integrated profile is a different distribution and does not invalidate the earlier reservation;
+- no latency threshold is frozen.
 
-## NOT VERIFIED
-- T10 native disabled equivalence.
-- authoritative patched mini-SWE-agent checkout.
-- upstream mini-SWE-agent tests under the integrated patch.
-- GLM/TokenRouter provider-attempt usage integration and mapping.
-- integrated retrieval latency/profile behavior.
+## MANIFEST
+Candidate: `manifests/integration_manifest.candidate.json` updated.
 
-## FINAL MANIFEST
-**NOT FROZEN**
-
-Final manifest must not be frozen before the authoritative integration gate passes at one exact implementation commit.
+Final manifest: **NOT FROZEN**.
 
 ## TERMINAL-BENCH
 **NOT RUN**
 
-**FORBIDDEN** until authoritative integration, strong T10, upstream/provider-accounting checks, and Chat4 reproducibility gate pass.
+**FORBIDDEN** until the real provider-accounting gate resolves, an exact integration SHA is independently reviewed, and the benchmark/reproducibility gate passes.
 
 ## Evidence boundary
-Staging clearance authorizes integration only. It is not evidence that the authoritative mini-SWE-agent integration is correct, baseline-equivalent, provider-accounting-valid, or benchmark-ready.
+Green CI proves the locally executable integration gates only. It does **not** clear the real-provider scientific accounting gate and does not authorize Terminal-Bench.
