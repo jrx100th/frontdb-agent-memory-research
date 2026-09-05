@@ -69,7 +69,7 @@ jobs:
           git -C upstream-patched add -A
           git -C upstream-patched write-tree | tee integration_artifacts/patched_upstream_tree_sha.txt
 
-      - name: Install upstream-equivalent test dependencies
+      - name: Install upstream-equivalent test dependencies with pinned LiteLLM
         run: |
           set -euo pipefail
           sudo apt-get update
@@ -81,7 +81,14 @@ jobs:
           sudo ln -sf /usr/bin/apptainer /usr/bin/singularity
           cd "$GITHUB_WORKSPACE"
           python -m pip install --disable-pip-version-check --upgrade pip
-          python -m pip install --disable-pip-version-check -e 'upstream-patched[full]'
+          python -m pip install --disable-pip-version-check -c implementation/authoritative/provider-constraints.txt -e 'upstream-patched[full]'
+          python - <<'PY' | tee integration_artifacts/provider_versions.txt
+          import importlib.metadata
+          version = importlib.metadata.version('litellm')
+          print(f'LITELLM_VERSION={version}')
+          assert version == '1.99.0'
+          print(f'OPENAI_VERSION={importlib.metadata.version("openai")}')
+          PY
 
       - name: Strong T10 pristine-vs-disabled provider-boundary equivalence
         run: |
@@ -130,7 +137,8 @@ jobs:
             tests/staging/test_chat3_command_equivalence.py \
             tests/staging/test_chat2_command_raw_collision.py \
             tests/message_bus/test_message_bus.py \
-            tests/message_bus/test_message_bus_cas.py
+            tests/message_bus/test_message_bus_cas.py \
+            tests/integration/test_provider_adapter.py
 
       - name: Compile patched source and integration tests
         run: |
@@ -173,6 +181,7 @@ jobs:
           TOKENROUTER_API_KEY: ${{ secrets.TOKENROUTER_API_KEY }}
           TOKENROUTER_BASE_URL: ${{ secrets.TOKENROUTER_BASE_URL }}
           TOKENROUTER_MODEL: ${{ secrets.TOKENROUTER_MODEL }}
+          OPENAI_API_KEY: ${{ secrets.TOKENROUTER_API_KEY }}
         run: |
           set -euo pipefail
           python tests/integration/provider_probe.py | tee integration_artifacts/provider-probe.log
