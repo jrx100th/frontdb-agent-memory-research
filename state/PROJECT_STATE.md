@@ -6,7 +6,7 @@ Agent Memory Efficiency Experiment
 ## STATUS
 V0 architecture remains frozen.
 
-The authoritative mini-SWE-agent v2.4.6 integration remains tested at:
+The authoritative mini-SWE-agent v2.4.6 scientific baseline remains:
 
 `81b7e326f91e5efdee43cf11349294c088e2731e`
 
@@ -16,11 +16,34 @@ Chat3 independently reviewed the authoritative integration and returned:
 
 **PROCEED_TO_BENCHMARK_REPRO_GATE**
 
-Chat4 then performed the Benchmark/Reproducibility gate and correctly returned:
+Chat4 previously returned:
 
 **BLOCKED_REPRO_IMPLEMENTATION_FIX_REQUIRED**
 
-The blocker is narrow: the authoritative executable agent path exposes A (native full history) and C (structured memory), but does not yet expose executable B (Last-4-only with zero memory side effects) or D (pure lexical FTS/BM25 baseline with the same storage/safety/budget as C).
+because executable B (Last-4-only, zero memory side effects) and D (pure lexical FTS/BM25 baseline sharing C storage/safety/budget) were missing.
+
+Chat2 has now completed the authorized minimal condition-runner fix at:
+
+`ff6a1303acb865c0e0689a18eb7fceb7af4e0cdc`
+
+Authoritative CI for that condition-runner object:
+
+- run `33988970398`
+- job `101367636620`
+- conclusion: `success`
+- deterministic condition-purity suite: `10 passed / 0 failed`
+- Strong T10: **PASS**
+- upstream: `606 passed / 0 failed / 13 skipped`
+
+Baseline -> condition-runner changed exactly:
+
+1. `.github/workflows/chat2-authoritative-integration.yml`
+2. `implementation/authoritative/apply_condition_runner.py`
+3. `tests/integration/test_condition_runner.py`
+
+Frozen C repository sources/constants were not changed.
+
+This Chat2 result is **IMPLEMENTATION-TESTED BUT NOT YET INDEPENDENTLY CLEARED BY CHAT4**.
 
 Terminal-Bench execution remains **NOT RUN / NOT AUTHORIZED**.
 
@@ -33,7 +56,14 @@ mini-SWE-agent v2.4.6
 ## TESTED SCIENTIFIC BASELINE SHA
 `81b7e326f91e5efdee43cf11349294c088e2731e`
 
-Only the minimal condition-runner implementation fix is now authorized. The frozen C algorithm/constants may not change.
+## TESTED CONDITION-RUNNER SHA
+`ff6a1303acb865c0e0689a18eb7fceb7af4e0cdc`
+
+Implementation branch:
+
+`chat2/authoritative-integration-20260905`
+
+The condition-runner SHA is the object Chat4 must independently review. It is not merged into coordination `main`.
 
 ## MODEL / PROVIDER
 - model: GLM-5.3
@@ -47,7 +77,7 @@ Only the minimal condition-runner implementation fix is now authorized. The froz
 provider-reported total tokens / successfully solved tasks
 
 ## AUTHORITATIVE PROVIDER ACCOUNTING
-Final authoritative provider observation:
+Final authoritative provider observation from the cleared baseline:
 
 - input/prompt tokens: `186`
 - output/completion tokens: `50`
@@ -74,39 +104,43 @@ Independent reviewer CI:
 - provider accounting + adapter tests: `13 passed`
 - Strong T10: **PASS**
 
+## CONDITION-RUNNER IMPLEMENTATION STATUS
+Chat2 publication handoff:
+
+`messages/orchestrator/MSG-000028-chat2-to-orchestrator-condition-runner-review-handoff.md`
+
+Chat2 requested Chat4 review in:
+
+`messages/chat4_benchmark/MSG-000029-chat2-to-chat4-condition-harness-repro-review-request.md`
+
+Implementation-tested semantics reported by Chat2:
+- A = native full history, zero memory side effects
+- B = system + original task + last 4 complete native steps verbatim; incomplete trailing step excluded; zero MemoryRuntime/DB/fingerprint/retrieval/synthetic-message work
+- C = existing frozen structured-memory behavior unchanged
+- D = same task-local storage/chunks/write policy/task isolation/freshness/staleness/fingerprint/budget/limits/framing/serialization as C, with pure lexical FTS/BM25 selection and no structured-ranking bonuses
+- C_VS_D_ONLY_INTENDED_DIFFERENCE = PASS
+- CONDITION_NEUTRAL_SETTINGS = PASS
+
+These are not final scientific claims until Chat4 independently reproduces/clears them.
+
 ## CHAT4 REPRODUCIBILITY GATE
-Durable blocker handoff:
-
-`messages/orchestrator/MSG-000026-chat4-to-orchestrator-repro-gate-blocked.md`
-
-Chat4 verified Terminal-Bench identity without executing tasks:
+Terminal-Bench identity already verified without executing tasks:
 
 - repository: `harbor-framework/terminal-bench`
 - tag: `v3.0.0`
 - immutable revision: `2b0442c3c583b710ca8da14c8e601b99f2f1f244`
 
-Condition status:
-- A: executable native full history with zero memory side effects
-- B: **BLOCKED** — Last-4 helper exists but no authoritative Last-4-only executable mode with zero memory runtime/DB/fingerprint/retrieval work
-- C: executable frozen structured-memory path
-- D: **BLOCKED** — no pure lexical FTS/BM25 ranking-policy mode exists in the executable path
+The previous B/D blocker is now implementation-tested as repaired, but independent Chat4 verification is still required.
 
-Because B/D are not executable, Chat4 did not freeze a task subset, condition schedule, prompt/provider packet, or final experiment manifest.
+If Chat4 clears condition purity, Chat4 must then freeze and publish before any task execution:
+- exact 10-15 task IDs and frozen order/schedule
+- A/B/C/D execution semantics and isolation/reset rules
+- provider/model/settings packet
+- retry/caching/accounting-invalid policy
+- measurement outputs
+- final experiment manifest, fully populated, hashed, frozen, and read back
 
 Final benchmark manifest: **NOT FROZEN**.
-
-## AUTHORIZED MINIMAL IMPLEMENTATION FIX
-Chat2 is authorized exactly once to expose a deterministic A/B/C/D condition selector and non-benchmark purity smoke tests.
-
-Required semantics:
-- A = native full history, zero memory side effects
-- B = system + original task + last 4 complete native steps verbatim, zero MemoryRuntime/DB/fingerprinting/retrieval/synthetic-message work
-- C = existing frozen structured-memory path unchanged
-- D = same task-local memory storage/chunks/candidate eligibility/freshness/staleness/2048 budget/record limits/framing/serialization as C, but pure lexical FTS/BM25 ranking/selection instead of C's structured score
-
-No other scientific implementation change is authorized.
-
-After Chat2 completes and publishes the fix, control returns directly to Chat4 for independent condition-purity/reproducibility verification.
 
 ## ARTIFACT PROVENANCE RESERVATION
 - artifact id: `9970944939`
@@ -117,21 +151,21 @@ After Chat2 completes and publishes the fix, control returns directly to Chat4 f
 ## PERFORMANCE RESERVATION
 **HIGH PERFORMANCE RISK** remains active.
 
-The condition-runner fix must not optimize or alter retrieval coefficients/constants.
+No retrieval optimization is authorized during the reproducibility gate.
 
 ## TERMINAL-BENCH
 Benchmark family: Terminal-Bench 3.0
 
-Pinned identity from Chat4 gate: `v3.0.0` at `2b0442c3c583b710ca8da14c8e601b99f2f1f244`.
+Pinned identity: `v3.0.0` at `2b0442c3c583b710ca8da14c8e601b99f2f1f244`.
 
 Execution: **NOT RUN**.
 
-Execution remains forbidden until Chat2's minimal B/D runner fix is independently cleared by Chat4, the exact frozen task subset/schedule/settings are published, and the final experiment manifest is frozen/read back.
+Execution remains forbidden until Chat4 independently clears the condition-runner, freezes the exact task subset/schedule/settings and final experiment manifest, publishes/read-backs that packet, and explicitly returns `READY_TO_EXECUTE_BENCHMARK`.
 
 ## NEXT ACTION
-**CHAT2 — MINIMAL REPRODUCIBILITY CONDITION-RUNNER FIX**
+**CHAT4 — INDEPENDENT CONDITION-HARNESS REPRODUCIBILITY REVIEW + MANIFEST FREEZE IF CLEAN**
 
-Then return immediately to Chat4.
+No Terminal-Bench task execution during this gate.
 
 ## Evidence boundary
-Engineering/provider/reviewer gates remain cleared. The current blocker is reproducibility infrastructure, not demonstrated failure of the structured-memory algorithm. No claim that structured memory improves tokens per success has been tested yet.
+Engineering/provider/reviewer gates remain cleared. Chat2 has repaired the narrow B/D execution blocker under deterministic non-benchmark tests. The repair is not independently cleared yet. No claim that structured memory improves tokens per success has been tested.
