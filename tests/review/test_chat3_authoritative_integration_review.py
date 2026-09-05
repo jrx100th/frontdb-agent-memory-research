@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import os
 from pathlib import Path
 from types import SimpleNamespace
@@ -8,7 +9,7 @@ import pytest
 
 from minisweagent.memory.context_builder import build_context, serialized_message_units
 from minisweagent.memory.fingerprint import MAX_FILE_BYTES, compare_fingerprint, fingerprint
-import minisweagent.memory.fingerprint as fpmod
+fpmod = importlib.import_module("minisweagent.memory.fingerprint")
 from minisweagent.memory.retrieve import RetrievalState, retrieve
 from minisweagent.memory.store import MemoryEvent, MemoryStore
 
@@ -202,9 +203,6 @@ def test_raw_command_identity_regression_still_distinguishes_nbsp(tmp_path: Path
 
 
 def test_provider_adapter_change_did_not_touch_frozen_memory_sources():
-    # This branch is rooted at the exact tested implementation SHA. The provider-fix
-    # commit range is independently compared by Chat3; this test makes accidental
-    # local mutation of the core constants visible in executable evidence.
     from minisweagent.memory.retrieve import CANDIDATE_POOL_MAX, MAX_SELECTED, Q_LOCAL_MAX, Q_TASK_MAX, RETRIEVAL_BUDGET
     from minisweagent.memory.store import MAX_CHUNK_UNITS
     assert (RETRIEVAL_BUDGET, MAX_CHUNK_UNITS, MAX_SELECTED, Q_LOCAL_MAX, Q_TASK_MAX, CANDIDATE_POOL_MAX) == (2048, 256, 8, 20, 10, 40)
