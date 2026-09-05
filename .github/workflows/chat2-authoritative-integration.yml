@@ -1,0 +1,191 @@
+name: chat2-authoritative-integration
+
+on:
+  push:
+    branches:
+      - chat2/authoritative-integration-20260905
+
+permissions:
+  contents: read
+
+jobs:
+  authoritative-integration:
+    runs-on: ubuntu-24.04
+    env:
+      MSWEA_SILENT_STARTUP: "1"
+      MSWEA_GLOBAL_CONFIG_DIR: ${{ github.workspace }}/.mswea-config
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout research repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Checkout exact authoritative mini-SWE-agent upstream
+        uses: actions/checkout@v4
+        with:
+          repository: SWE-agent/mini-swe-agent
+          ref: a83fcae82d2a08f0ee0c688f9d137b3566c097f8
+          fetch-depth: 0
+          path: upstream-pristine
+
+      - name: Verify upstream identity and critical blobs
+        run: |
+          set -euo pipefail
+          mkdir -p integration_artifacts
+          test "$(git -C upstream-pristine rev-parse HEAD)" = "a83fcae82d2a08f0ee0c688f9d137b3566c097f8"
+          test "$(git -C upstream-pristine describe --tags --exact-match HEAD)" = "v2.4.6"
+          grep -F '__version__ = "2.4.6"' upstream-pristine/src/minisweagent/__init__.py
+          test "$(git -C upstream-pristine hash-object pyproject.toml)" = "0bd3e1329252af4399805959d78d5984f2bbf2b0"
+          test "$(git -C upstream-pristine hash-object src/minisweagent/__init__.py)" = "8dbc904c36c3ed31b3c7d9697e44dbf0cf6c0e87"
+          test "$(git -C upstream-pristine hash-object src/minisweagent/agents/default.py)" = "ca310e37d7c61888c576f73f5e1790ac769407b1"
+          test "$(git -C upstream-pristine hash-object src/minisweagent/models/litellm_model.py)" = "84b5d548df0e10cbe820862399379bbde69a6fa8"
+          test "$(git -C upstream-pristine hash-object src/minisweagent/models/utils/retry.py)" = "055d4b6fd4f57c1420dfa7622a8fe24148354548"
+          test "$(git -C upstream-pristine hash-object src/minisweagent/models/utils/actions_toolcall.py)" = "8209113c4a1663d34468be6106b5661ec9e0be62"
+          sha256sum \
+            upstream-pristine/pyproject.toml \
+            upstream-pristine/src/minisweagent/__init__.py \
+            upstream-pristine/src/minisweagent/agents/default.py \
+            upstream-pristine/src/minisweagent/models/litellm_model.py \
+            upstream-pristine/src/minisweagent/models/utils/retry.py \
+            upstream-pristine/src/minisweagent/models/utils/actions_toolcall.py \
+            > integration_artifacts/upstream_sha256.txt
+          printf 'UPSTREAM_BASE_SHA=%s\nVERSION=%s\n' \
+            "$(git -C upstream-pristine rev-parse HEAD)" \
+            "$(git -C upstream-pristine describe --tags --exact-match HEAD)" \
+            | tee integration_artifacts/upstream_identity.txt
+
+      - name: Apply deliberate integration overlay to exact upstream copy
+        run: |
+          set -euo pipefail
+          cp -a upstream-pristine upstream-patched
+          python implementation/authoritative/apply_integration.py --upstream upstream-patched
+          git -C upstream-patched diff --check
+          git -C upstream-patched diff --binary > integration_artifacts/authoritative.patch
+          sha256sum integration_artifacts/authoritative.patch | tee integration_artifacts/patch_sha256.txt
+          git -C upstream-patched add -A
+          git -C upstream-patched write-tree | tee integration_artifacts/patched_upstream_tree_sha.txt
+
+      - name: Install upstream-equivalent test dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y podman bubblewrap wget
+          sudo chmod u+s "$(which bwrap)"
+          cd /tmp
+          wget -q https://github.com/apptainer/apptainer/releases/download/v1.3.4/apptainer_1.3.4_amd64.deb
+          sudo dpkg -i apptainer_1.3.4_amd64.deb || sudo apt-get install -f -y
+          sudo ln -sf /usr/bin/apptainer /usr/bin/singularity
+          cd "$GITHUB_WORKSPACE"
+          python -m pip install --disable-pip-version-check --upgrade pip
+          python -m pip install --disable-pip-version-check -e 'upstream-patched[full]'
+
+      - name: Strong T10 pristine-vs-disabled provider-boundary equivalence
+        run: |
+          set -euo pipefail
+          python tests/integration/run_strong_t10.py \
+            --pristine upstream-pristine \
+            --patched upstream-patched \
+            --out integration_artifacts
+
+      - name: Integrated T1-T9 and context/zero-extra-call tests
+        env:
+          PYTHONPATH: upstream-patched/src
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/integration/test_integrated_memory.py
+
+      - name: Provider-attempt accounting mock integration tests
+        env:
+          PYTHONPATH: upstream-patched/src
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/integration/test_provider_accounting.py
+
+      - name: Run authoritative upstream regression suite
+        id: upstream_tests
+        continue-on-error: true
+        working-directory: upstream-patched
+        env:
+          MSWEA_CONFIGURED: "true"
+        run: |
+          set -o pipefail
+          python -m pytest -q -rA --junitxml=../integration_artifacts/upstream-junit.xml \
+            2>&1 | tee ../integration_artifacts/upstream-tests.log
+
+      - name: Rerun cleared staging/regression matrix against integrated shared code
+        env:
+          PYTHONPATH: upstream-patched/src
+        run: |
+          set -euo pipefail
+          python -m pytest -q \
+            tests/staging/test_v0_memory.py \
+            tests/staging/test_chat3_adversarial.py \
+            tests/staging/test_chat2_adversarial_variants.py \
+            tests/staging/test_chat3_second_rereview.py \
+            tests/staging/test_chat2_second_cycle_variants.py \
+            tests/staging/test_chat3_command_equivalence.py \
+            tests/staging/test_chat2_command_raw_collision.py \
+            tests/message_bus/test_message_bus.py \
+            tests/message_bus/test_message_bus_cas.py
+
+      - name: Compile patched source and integration tests
+        run: |
+          set -euo pipefail
+          python -m compileall -q upstream-patched/src implementation/authoritative tests/integration
+
+      - name: SQLite FTS5 and integrated integrity check
+        env:
+          PYTHONPATH: upstream-patched/src
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import sqlite3, tempfile
+          from pathlib import Path
+          from minisweagent.memory.store import MemoryEvent, MemoryStore
+          con = sqlite3.connect(':memory:')
+          con.execute("CREATE VIRTUAL TABLE probe USING fts5(content, tokenize='unicode61')")
+          con.execute("INSERT INTO probe(content) VALUES('hello')")
+          assert con.execute("SELECT count(*) FROM probe WHERE probe MATCH 'hello'").fetchone()[0] == 1
+          print('FTS5=PASS')
+          with tempfile.TemporaryDirectory() as td:
+              store = MemoryStore(Path(td) / 'memory.sqlite')
+              store.store(MemoryEvent(task_id='t', step_id=1, content='integrity', kind='TOOL'))
+              with store.connect() as db:
+                  result = db.execute('PRAGMA integrity_check').fetchone()[0]
+              print(f'integrity_check={result}')
+              assert result == 'ok'
+          PY
+
+      - name: Integrated retrieval performance profile
+        env:
+          PYTHONPATH: upstream-patched/src
+        run: |
+          set -euo pipefail
+          python tests/integration/profile_retrieval.py | tee integration_artifacts/performance.log
+
+      - name: Controlled real GLM TokenRouter usage probe if route is available
+        env:
+          PYTHONPATH: upstream-patched/src
+          TOKENROUTER_API_KEY: ${{ secrets.TOKENROUTER_API_KEY }}
+          TOKENROUTER_BASE_URL: ${{ secrets.TOKENROUTER_BASE_URL }}
+          TOKENROUTER_MODEL: ${{ secrets.TOKENROUTER_MODEL }}
+        run: |
+          set -euo pipefail
+          python tests/integration/provider_probe.py | tee integration_artifacts/provider-probe.log
+
+      - name: Record upstream-suite outcome
+        env:
+          UPSTREAM_OUTCOME: ${{ steps.upstream_tests.outcome }}
+        run: |
+          printf 'UPSTREAM_TEST_STEP_OUTCOME=%s\n' "$UPSTREAM_OUTCOME" | tee integration_artifacts/upstream-outcome.txt
+
+      - name: Upload integration evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: authoritative-integration-evidence
+          path: integration_artifacts
+          if-no-files-found: error
