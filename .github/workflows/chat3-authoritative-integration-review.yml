@@ -1,0 +1,78 @@
+name: chat3-authoritative-integration-review
+
+on:
+  push:
+    branches:
+      - chat3/authoritative-integration-review-20260905
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    env:
+      MSWEA_SILENT_STARTUP: "1"
+      MSWEA_GLOBAL_CONFIG_DIR: ${{ github.workspace }}/.mswea-review-config
+    steps:
+      - name: Checkout research evidence branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Checkout exact mini-SWE-agent upstream
+        uses: actions/checkout@v4
+        with:
+          repository: SWE-agent/mini-swe-agent
+          ref: a83fcae82d2a08f0ee0c688f9d137b3566c097f8
+          fetch-depth: 0
+          path: upstream-pristine
+
+      - name: Verify upstream and apply tested integration source
+        run: |
+          set -euo pipefail
+          test "$(git -C upstream-pristine rev-parse HEAD)" = "a83fcae82d2a08f0ee0c688f9d137b3566c097f8"
+          test "$(git -C upstream-pristine describe --tags --exact-match HEAD)" = "v2.4.6"
+          cp -a upstream-pristine upstream-patched
+          python implementation/authoritative/apply_integration.py --upstream upstream-patched
+          git -C upstream-patched diff --check
+
+      - name: Install exact provider constraint and patched core
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --upgrade pip
+          python -m pip install --disable-pip-version-check -c implementation/authoritative/provider-constraints.txt -e upstream-patched pytest
+          python - <<'PY'
+          import importlib.metadata
+          assert importlib.metadata.version('litellm') == '1.99.0'
+          print('LITELLM=1.99.0')
+          PY
+
+      - name: New Chat3 staleness retrieval and invariant attacks
+        env:
+          PYTHONPATH: upstream-patched/src
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/review/test_chat3_authoritative_integration_review.py
+
+      - name: Provider accounting and adapter regressions
+        env:
+          PYTHONPATH: upstream-patched/src
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/integration/test_provider_accounting.py tests/integration/test_provider_adapter.py
+
+      - name: Independently rerun Strong T10
+        run: |
+          set -euo pipefail
+          mkdir -p review_artifacts
+          python tests/integration/run_strong_t10.py --pristine upstream-pristine --patched upstream-patched --out review_artifacts
+          cat review_artifacts/strong_t10.json
+
+      - name: Compile reviewer and patched memory/accounting code
+        run: |
+          set -euo pipefail
+          python -m compileall -q tests/review upstream-patched/src/minisweagent/memory upstream-patched/src/minisweagent/instrumentation
