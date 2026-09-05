@@ -50,17 +50,26 @@ jobs:
           test -d "$envdir"
           mkdir -p prebuild-result
           project="freeze-${TASK_ID//[^a-zA-Z0-9]/-}"
-          main_id=""
           if test -f "$envdir/Dockerfile"; then
             docker build --pull --iidfile prebuild-result/main.iid -t "$project-main:freeze" "$envdir"
-            main_id="$(cat prebuild-result/main.iid)"
           fi
           compose=""
           for candidate in docker-compose.yaml docker-compose.yml compose.yaml compose.yml; do
             if test -f "$envdir/$candidate"; then compose="$envdir/$candidate"; break; fi
           done
           if test -n "$compose"; then
-            docker compose --project-name "$project" -f "$compose" --project-directory "$envdir" build --pull
+            COMPOSE_FILE="$compose" PROJECT_DIR="$envdir" PROJECT_NAME="$project" python - <<'PY' > prebuild-result/build-services.txt
+          import json, os, subprocess
+          cmd=['docker','compose','--project-name',os.environ['PROJECT_NAME'],'-f',os.environ['COMPOSE_FILE'],'--project-directory',os.environ['PROJECT_DIR'],'config','--format','json']
+          cfg=json.loads(subprocess.check_output(cmd,text=True))
+          for name, svc in (cfg.get('services') or {}).items():
+              if svc.get('build') is not None:
+                  print(name)
+          PY
+            mapfile -t build_services < prebuild-result/build-services.txt
+            if test "${#build_services[@]}" -gt 0; then
+              docker compose --project-name "$project" -f "$compose" --project-directory "$envdir" build --pull "${build_services[@]}"
+            fi
           fi
           python - <<'PY'
           import json, os, pathlib, subprocess
@@ -126,7 +135,7 @@ jobs:
           out={
             'schema_version':1,
             'terminal_bench_revision':'2b0442c3c583b710ca8da14c8e601b99f2f1f244',
-            'method':'Prebuilt task environment Docker/Compose images on ubuntu-24.04 without benchmark agent execution or provider calls; image_id is Docker content-addressed image config digest.',
+            'method':'Prebuilt task environment Docker/Compose images on ubuntu-24.04 without benchmark agent execution or provider calls; image_id is Docker content-addressed image config digest. Compose builds include only services with an explicit build definition; injected main-agent placeholders are skipped.',
             'tasks':{t:recs[t] for t in expected},
           }
           data=(json.dumps(out,sort_keys=True,separators=(',',':'))+'\n').encode()
