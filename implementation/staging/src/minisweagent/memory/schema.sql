@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS memories (
 CREATE INDEX IF NOT EXISTS idx_memories_task_step ON memories(task_id, step_id);
 CREATE INDEX IF NOT EXISTS idx_memories_invalidated ON memories(task_id, invalidated_by);
 CREATE INDEX IF NOT EXISTS idx_memories_fingerprint ON memories(task_id, fingerprint);
+CREATE INDEX IF NOT EXISTS idx_memories_task_command ON memories(task_id, command, step_id);
 CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
     content,
     command,

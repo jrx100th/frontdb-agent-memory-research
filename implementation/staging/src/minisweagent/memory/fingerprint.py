@@ -29,6 +29,10 @@ def _inside(root: Path, target: Path) -> bool:
         return False
 
 
+def _same_identity(a: os.stat_result, b: os.stat_result) -> bool:
+    return (a.st_dev, a.st_ino) == (b.st_dev, b.st_ino)
+
+
 def fingerprint(path: str | os.PathLike[str], workspace: str | os.PathLike[str]) -> FileFingerprint:
     raw_path = str(path)
     try:
@@ -98,6 +102,24 @@ def fingerprint(path: str | os.PathLike[str], workspace: str | os.PathLike[str])
     stable_fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
     if any(getattr(pre, f) != getattr(post, f) for f in stable_fields):
         return FileFingerprint(raw_path, "UNSTABLE", size=post.st_size, resolved_path=str(resolved))
+
+    # Revalidate the pathname after hashing.  A stable open fd is insufficient:
+    # a symlink/path can be retargeted while the old inode remains unchanged.
+    try:
+        current_resolved = candidate.resolve(strict=True)
+        current_lst = candidate.lstat()
+        current_st = candidate.stat()
+    except (FileNotFoundError, OSError, RuntimeError):
+        return FileFingerprint(raw_path, "UNSTABLE", size=post.st_size, resolved_path=str(resolved))
+    if not _inside(root, current_resolved):
+        return FileFingerprint(raw_path, "UNSTABLE", size=post.st_size, resolved_path=str(current_resolved))
+    if current_resolved != resolved:
+        return FileFingerprint(raw_path, "UNSTABLE", size=post.st_size, resolved_path=str(current_resolved))
+    if not _same_identity(lst, current_lst):
+        return FileFingerprint(raw_path, "UNSTABLE", size=post.st_size, resolved_path=str(current_resolved))
+    if not _same_identity(post, current_st):
+        return FileFingerprint(raw_path, "UNSTABLE", size=post.st_size, resolved_path=str(current_resolved))
+
     return FileFingerprint(raw_path, "OK", h.hexdigest(), post.st_size, str(resolved))
 
 

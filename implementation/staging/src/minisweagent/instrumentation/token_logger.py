@@ -35,6 +35,29 @@ def _as_dict(value: Any) -> dict | None:
         return None
 
 
+def _contains_key(value: Any, needle: str) -> bool:
+    if isinstance(value, dict):
+        return any(needle in str(k).casefold() or _contains_key(v, needle) for k, v in value.items())
+    if isinstance(value, (list, tuple)):
+        return any(_contains_key(v, needle) for v in value)
+    return False
+
+
+def _audit_fields(usage: dict, needle: str) -> dict | None:
+    # Preserve the provider-native top-level branch that contains the detail;
+    # raw_usage remains unchanged and provider totals are never recomputed from it.
+    found = {
+        k: v
+        for k, v in usage.items()
+        if needle in str(k).casefold() or _contains_key(v, needle)
+    }
+    return found or None
+
+
+def _token_int(value: Any) -> bool:
+    return type(value) is int and value >= 0
+
+
 def extract_provider_usage(response: Any, *, attempt_id: str, retry_index: int, possibly_generated: bool = True) -> AttemptUsage:
     data = _as_dict(response) or {}
     usage = _as_dict(data.get("usage") if isinstance(data, dict) else None)
@@ -45,12 +68,17 @@ def extract_provider_usage(response: Any, *, attempt_id: str, retry_index: int, 
     inp = usage.get("prompt_tokens", usage.get("input_tokens"))
     out = usage.get("completion_tokens", usage.get("output_tokens"))
     total = usage.get("total_tokens")
-    cached = {k: v for k, v in usage.items() if "cache" in k.casefold()}
-    reasoning = {k: v for k, v in usage.items() if "reason" in k.casefold()}
-    if total is None and inp is not None and out is not None:
-        total = inp + out
-    valid = all(isinstance(v, int) and v >= 0 for v in (inp, out, total))
-    return AttemptUsage(attempt_id, retry_index, request_id, usage, inp, out, total, cached or None, reasoning or None,
+    cached = _audit_fields(usage, "cache")
+    reasoning = _audit_fields(usage, "reason")
+    # Frozen default contract for this staging adapter is ordinary additive
+    # provider accounting.  Never synthesize, repair, or estimate a provider total.
+    valid = (
+        _token_int(inp)
+        and _token_int(out)
+        and _token_int(total)
+        and total == inp + out
+    )
+    return AttemptUsage(attempt_id, retry_index, request_id, usage, inp, out, total, cached, reasoning,
                         "OK" if valid else INVALID)
 
 class TokenLogger:
