@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.metadata
 import json
 import os
 from pathlib import Path
@@ -28,9 +29,18 @@ def main() -> None:
         print(json.dumps(result, sort_keys=True))
         return
 
+    # TokenRouter is OpenAI-compatible, but LiteLLM 1.99.0 cannot infer a
+    # provider from the raw TokenRouter route ID. The explicit provider hint
+    # selects the OpenAI transport without rewriting the provider-facing model.
+    # The API key is intentionally supplied through OPENAI_API_KEY in the CI
+    # environment so it is never stored inside serializable model_kwargs.
     model = LitellmModel(
         model_name=model_name,
-        model_kwargs={"api_key": key, "api_base": base, "stream": False},
+        model_kwargs={
+            "api_base": base,
+            "stream": False,
+            "custom_llm_provider": "openai",
+        },
         cost_tracking="ignore_errors",
     )
     model.set_accounting_context(task_id="non-benchmark-provider-probe", run_id="integration-provider-probe")
@@ -62,10 +72,17 @@ def main() -> None:
         "attempts": attempts,
         "aggregate": aggregate,
         "stream": False,
+        "custom_llm_provider": "openai",
+        "litellm_version": importlib.metadata.version("litellm"),
         "requested_frozen_model": "GLM-5.3",
         "route_model_name": model_name,
+        "api_key_present": bool(key),
+        "base_url_present": bool(base),
+        "model_route_present": bool(model_name),
     }
-    output.write_text(json.dumps(result, indent=2, sort_keys=True), encoding="utf-8")
+    serialized = json.dumps(result, indent=2, sort_keys=True)
+    assert key not in serialized
+    output.write_text(serialized, encoding="utf-8")
     print(json.dumps({k: v for k, v in result.items() if k != "attempts"}, sort_keys=True))
 
 
