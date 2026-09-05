@@ -1,0 +1,82 @@
+{
+  "manifest_kind": "pre-final-authoritative-integration-candidate",
+  "final_frozen": false,
+  "upstream": {
+    "repository": "SWE-agent/mini-swe-agent",
+    "version": "2.4.6",
+    "commit": "a83fcae82d2a08f0ee0c688f9d137b3566c097f8"
+  },
+  "integration": {
+    "branch": "chat2/authoritative-integration-20260905",
+    "candidate_sha": "bb1d85c225798ee249e461bff5a7f841fd57e2a9",
+    "integration_tested_sha": null,
+    "status": "BLOCKED_NO_CREDENTIALS_OR_ROUTE"
+  },
+  "model": "GLM-5.3",
+  "provider": {
+    "route_kind": "TokenRouter-compatible",
+    "real_probe_request_executed": false,
+    "credential_presence": {
+      "api_key": false,
+      "base_url": false,
+      "model_route": false
+    },
+    "real_usage_shape": null,
+    "real_input_mapping": null,
+    "real_output_mapping": null,
+    "real_total_mapping": null,
+    "real_cached_detail": null,
+    "real_reasoning_detail": null,
+    "stream": false,
+    "note": "Controlled probe harness executed, but no real provider request was sent. Mock/provider-boundary accounting tests pass; they do not substitute for real provider evidence."
+  },
+  "retrieval": {
+    "recent_steps": 4,
+    "retrieval_budget": 2048,
+    "max_chunk": 256,
+    "max_selected_records": 8,
+    "q_local": 20,
+    "q_task": 10,
+    "candidate_pool_max": 40,
+    "supplemental_candidate_limit": 10,
+    "jaccard": 0.85,
+    "primary_fts5_tokenizer": "unicode61",
+    "ranking_weights": {
+      "lexical_rr": 1.0,
+      "file_overlap": 0.35,
+      "failure_test_match": 0.3,
+      "evidence_priority": 0.15,
+      "importance": 0.1
+    }
+  },
+  "serialization": {
+    "memory_envelope": "HISTORICAL_MEMORY_DATA_V1",
+    "canonical_json_sort_keys": true,
+    "canonical_json_separators": [",", ":"],
+    "ensure_ascii": true,
+    "local_packing_estimator": "canonical UTF-8 byte = 1 local packing unit"
+  },
+  "evidence": {
+    "ci_run": 33962038284,
+    "ci_job": 101295476028,
+    "ci_head_sha": "bb1d85c225798ee249e461bff5a7f841fd57e2a9",
+    "ci_conclusion": "success",
+    "strong_t10": "PASS",
+    "integrated_t1_t10": "PASS",
+    "upstream_tests": {"passed": 606, "failed": 0, "skipped": 13, "xfailed": 0},
+    "cleared_regression_matrix": {"passed": 133, "failed": 0, "skipped": 0},
+    "compileall": "PASS",
+    "sqlite_fts5": "PASS",
+    "sqlite_integrity_check": "ok",
+    "zero_extra_llm_calls": "PASS",
+    "real_provider_gate": "BLOCKED_NO_CREDENTIALS_OR_ROUTE"
+  },
+  "performance_seconds": {
+    "ordinary_5_rows": 0.003702,
+    "100_rows": 0.004949,
+    "1000_rows": 0.021594,
+    "10000_rows": 0.172598
+  },
+  "terminal_bench": "NOT_RUN",
+  "primary_metric": "provider-reported total tokens / successful tasks"
+}
