@@ -40,7 +40,7 @@ jobs:
       - name: Command-equivalence regressions
         env:
           PYTHONPATH: implementation/staging/src
-        run: python -m pytest -q tests/staging/test_chat3_command_equivalence.py
+        run: python -m pytest -q tests/staging/test_chat3_command_equivalence.py tests/staging/test_chat2_command_raw_collision.py
       - name: Message bus suite
         run: python -m pytest -q tests/message_bus/test_message_bus.py tests/message_bus/test_message_bus_cas.py
       - name: Compile all deterministic code
