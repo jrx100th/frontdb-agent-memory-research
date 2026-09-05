@@ -6,7 +6,7 @@ on:
       - chat2/adversarial-fix-20260905
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   adversarial:
@@ -17,7 +17,20 @@ jobs:
         with:
           python-version: '3.13'
       - run: python -m pip install --disable-pip-version-check pytest
-      - name: Run Chat3 A01-A12 against current staging implementation
+      - name: Apply deterministic minimal fixes
+        run: python scripts/apply_chat2_adversarial_fix.py
+      - name: Run Chat3 A01-A12 against fixed staging implementation
         env:
           PYTHONPATH: implementation/staging/src
         run: python -m pytest -q tests/staging/test_chat3_adversarial.py
+      - name: Commit fixed staging files after tests pass
+        run: |
+          if git diff --quiet -- implementation/staging/src/minisweagent/memory/retrieve.py implementation/staging/src/minisweagent/memory/fingerprint.py implementation/staging/src/minisweagent/memory/schema.sql implementation/staging/src/minisweagent/instrumentation/token_logger.py; then
+            echo "No source diff to commit"
+            exit 0
+          fi
+          git config user.name "CHAT2_IMPLEMENTER"
+          git config user.email "chat2-implementer@users.noreply.github.com"
+          git add implementation/staging/src/minisweagent/memory/retrieve.py implementation/staging/src/minisweagent/memory/fingerprint.py implementation/staging/src/minisweagent/memory/schema.sql implementation/staging/src/minisweagent/instrumentation/token_logger.py
+          git commit -m "[IMPL] minimally repair reproduced adversarial failures"
+          git push origin HEAD:chat2/adversarial-fix-20260905
