@@ -17,20 +17,55 @@ jobs:
         with:
           python-version: '3.13'
       - run: python -m pip install --disable-pip-version-check pytest
-      - name: Apply deterministic minimal fixes
+      - name: Apply deterministic minimal staging fixes
         run: python scripts/apply_chat2_adversarial_fix.py
-      - name: Run Chat3 A01-A12 against fixed staging implementation
+      - name: Apply deterministic message-bus CAS fix
+        run: python scripts/apply_chat2_bus_fix.py
+      - name: Original staging suite
+        env:
+          PYTHONPATH: implementation/staging/src
+        run: python -m pytest -q tests/staging/test_v0_memory.py
+      - name: Chat3 A01-A12 regressions
         env:
           PYTHONPATH: implementation/staging/src
         run: python -m pytest -q tests/staging/test_chat3_adversarial.py
-      - name: Commit fixed staging files after tests pass
+      - name: Chat2 neighboring adversarial variants
+        env:
+          PYTHONPATH: implementation/staging/src
+        run: python -m pytest -q tests/staging/test_chat2_adversarial_variants.py
+      - name: Message bus suite
+        run: python -m pytest -q tests/message_bus/test_message_bus.py tests/message_bus/test_message_bus_cas.py
+      - name: Compile all changed/runtime test code
+        run: python -m compileall -q implementation/staging/src tests/staging scripts tests/message_bus
+      - name: SQLite FTS5 and integrity check
+        env:
+          PYTHONPATH: implementation/staging/src
         run: |
-          if git diff --quiet -- implementation/staging/src/minisweagent/memory/retrieve.py implementation/staging/src/minisweagent/memory/fingerprint.py implementation/staging/src/minisweagent/memory/schema.sql implementation/staging/src/minisweagent/instrumentation/token_logger.py; then
-            echo "No source diff to commit"
+          python - <<'PY'
+          import sqlite3, tempfile
+          from pathlib import Path
+          from minisweagent.memory.store import MemoryStore, MemoryEvent
+          con = sqlite3.connect(':memory:')
+          con.execute("CREATE VIRTUAL TABLE probe USING fts5(content, tokenize='unicode61')")
+          con.execute("INSERT INTO probe(content) VALUES('hello')")
+          assert con.execute("SELECT count(*) FROM probe WHERE probe MATCH 'hello'").fetchone()[0] == 1
+          print('FTS5=PASS')
+          with tempfile.TemporaryDirectory() as td:
+              store = MemoryStore(Path(td) / 'memory.sqlite')
+              store.store(MemoryEvent(task_id='t', step_id=1, content='integrity', kind='TOOL'))
+              with store.connect() as db:
+                  result = db.execute('PRAGMA integrity_check').fetchone()[0]
+              print(f'integrity_check={result}')
+              assert result == 'ok'
+          PY
+      - name: Commit message-bus source/protocol after complete matrix passes
+        run: |
+          if git diff --quiet -- scripts/message_bus.py HANDOFF_PROTOCOL.md; then
+            echo "No bus/protocol diff to commit"
             exit 0
           fi
           git config user.name "CHAT2_IMPLEMENTER"
           git config user.email "chat2-implementer@users.noreply.github.com"
-          git add implementation/staging/src/minisweagent/memory/retrieve.py implementation/staging/src/minisweagent/memory/fingerprint.py implementation/staging/src/minisweagent/memory/schema.sql implementation/staging/src/minisweagent/instrumentation/token_logger.py
-          git commit -m "[IMPL] minimally repair reproduced adversarial failures"
+          git add scripts/message_bus.py HANDOFF_PROTOCOL.md
+          git commit -m "[IMPL] make message ID publication optimistic-CAS safe"
           git push origin HEAD:chat2/adversarial-fix-20260905
