@@ -1,0 +1,241 @@
+name: chat4-prebenchmark-identity-freeze
+
+on:
+  push:
+    branches:
+      - chat4/prebenchmark-identity-freeze-20260906
+
+permissions:
+  contents: read
+
+jobs:
+  freeze-identities:
+    runs-on: ubuntu-24.04
+    env:
+      TB_SHA: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+      TOKENROUTER_BASE_URL: ${{ secrets.TOKENROUTER_BASE_URL }}
+    steps:
+      - name: Checkout research repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify branch scientific parent state
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The two commits after e0eaf were an accidental temporary noop file and its deletion;
+          # their net tree diff is empty. This review branch itself adds only this workflow.
+          git diff --quiet e0eaf86ef319f3fd6b7aa31f1f59530126f62e34..HEAD^
+          test "$(git diff --name-only HEAD^..HEAD)" = ".github/workflows/chat4-prebenchmark-identity-freeze.yml"
+
+      - name: Checkout exact Terminal-Bench v3.0.0 revision
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+
+      - name: Verify Terminal-Bench identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C terminal-bench rev-parse HEAD)" = "$TB_SHA"
+          test "$(git -C terminal-bench describe --tags --exact-match HEAD)" = "v3.0.0"
+
+      - name: Hash authorized provider base without exposing value
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p freeze_packet
+          python - <<'PY'
+          import hashlib, json, os
+          value = os.environ.get("TOKENROUTER_BASE_URL")
+          if value is None or value == "":
+              raise SystemExit("TOKENROUTER_BASE_URL is unavailable")
+          digest = hashlib.sha256(value.encode("utf-8")).hexdigest()
+          packet = {
+              "schema_version": 1,
+              "canonicalization": "exact environment string encoded as UTF-8; no trimming or normalization",
+              "provider_api_base_expected_sha256": digest,
+              "secret_value_published": False,
+              "api_key_accessed_or_hashed": False,
+              "preflight_rule": "Compute SHA-256 over exact runtime TOKENROUTER_BASE_URL UTF-8 bytes and require equality before any provider invocation; mismatch => CONFIGURATION_INVALID and ABORT_BEFORE_PROVIDER_CALL.",
+          }
+          with open("freeze_packet/provider_base_identity.json", "w", encoding="utf-8") as f:
+              json.dump(packet, f, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+              f.write("\n")
+          print("PROVIDER_BASE_HASHED=YES")
+          print("PROVIDER_BASE_SECRET_EXPOSED=NO")
+          print("API_KEY_ACCESSED_OR_HASHED=NO")
+          PY
+
+      - name: Freeze task environment identities and external base digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib, json, os, re, subprocess
+          from pathlib import Path
+
+          repo = Path("terminal-bench")
+          tb_sha = os.environ["TB_SHA"]
+          tasks = [
+              "atrx-vep-crispr",
+              "batched-eval-parity",
+              "cad-model",
+              "cargo-flight-dispatch",
+              "coq-block-bound",
+              "cumulative-layout-shift",
+              "data-anonymization",
+              "live-database-cutover",
+              "music-harmony",
+              "uefi-bootkit",
+              "production-planning",
+              "wdm-design",
+          ]
+
+          def git(*args: str) -> str:
+              return subprocess.check_output(["git", "-C", str(repo), *args], text=True).strip()
+
+          def sha256_file(path: Path) -> str:
+              h = hashlib.sha256()
+              with path.open("rb") as f:
+                  for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                      h.update(chunk)
+              return h.hexdigest()
+
+          def expand_vars(value: str, args: dict[str, str]) -> str:
+              def repl(m):
+                  key = m.group(1) or m.group(2)
+                  if key not in args:
+                      raise RuntimeError(f"Unresolved Dockerfile ARG in FROM: {key}")
+                  return args[key]
+              return re.sub(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)", repl, value)
+
+          def dockerfile_external_refs(path: Path) -> list[str]:
+              args: dict[str, str] = {}
+              stages: set[str] = set()
+              refs: list[str] = []
+              for raw in path.read_text(encoding="utf-8").splitlines():
+                  line = raw.strip()
+                  if not line or line.startswith("#"):
+                      continue
+                  m = re.match(r"(?i)^ARG\s+([A-Za-z_][A-Za-z0-9_]*)(?:=(.*))?$", line)
+                  if m:
+                      if m.group(2) is not None:
+                          args[m.group(1)] = m.group(2).strip()
+                      continue
+                  m = re.match(r"(?i)^FROM\s+(?:--platform=\S+\s+)?(\S+)(?:\s+AS\s+(\S+))?", line)
+                  if not m:
+                      continue
+                  ref = expand_vars(m.group(1), args)
+                  alias = (m.group(2) or "").lower()
+                  if ref.lower() not in stages and ref.lower() != "scratch":
+                      refs.append(ref)
+                  if alias:
+                      stages.add(alias)
+              return refs
+
+          def compose_refs(path: Path) -> list[str]:
+              refs=[]
+              for raw in path.read_text(encoding="utf-8").splitlines():
+                  m=re.match(r"^\s*image\s*:\s*['\"]?([^'\"#\s]+)", raw)
+                  if m:
+                      refs.append(m.group(1))
+              return refs
+
+          def resolve_ref(ref: str) -> dict:
+              raw = subprocess.check_output(["docker", "buildx", "imagetools", "inspect", ref, "--raw"])
+              manifest_digest = "sha256:" + hashlib.sha256(raw).hexdigest()
+              obj = json.loads(raw)
+              platform_digest = manifest_digest
+              if isinstance(obj, dict) and isinstance(obj.get("manifests"), list):
+                  matches = [m for m in obj["manifests"] if (m.get("platform") or {}).get("os") == "linux" and (m.get("platform") or {}).get("architecture") == "amd64"]
+                  if not matches:
+                      raise RuntimeError(f"No linux/amd64 manifest for {ref}")
+                  platform_digest = matches[0]["digest"]
+              return {
+                  "reference_at_freeze": ref,
+                  "resolved_registry_manifest_digest": manifest_digest,
+                  "resolved_linux_amd64_manifest_digest": platform_digest,
+              }
+
+          all_refs: dict[str, dict] = {}
+          out = {
+              "schema_version": 1,
+              "terminal_bench_repository": "harbor-framework/terminal-bench",
+              "terminal_bench_tag": "v3.0.0",
+              "terminal_bench_revision": tb_sha,
+              "method": "Pinned Terminal-Bench task.toml blob + complete environment Git tree + Docker/container-definition blobs + registry-resolved external base-image manifest digests for linux/amd64. No solution/reference-answer files read; no agent/provider calls.",
+              "runtime_preflight_rule": "Before any provider call, verify pinned Terminal-Bench revision, task.toml blob, complete environment Git tree, every container-definition blob SHA and SHA-256, and every external base image registry/platform digest against this packet. Any mismatch => CONFIGURATION_INVALID/INFRASTRUCTURE_INVALID and ABORT_BEFORE_PROVIDER_CALL. Never silently rebuild from a changed moving tag after comparative execution begins. For a task, the runtime-built image digest must additionally be recorded and must be identical across A/B/C/D before provider invocation.",
+              "tasks": {},
+          }
+
+          for task in tasks:
+              task_root = repo / "tasks" / task
+              env_root = task_root / "environment"
+              if not env_root.is_dir():
+                  raise RuntimeError(f"Missing environment directory: {task}")
+              task_toml_rel = f"tasks/{task}/task.toml"
+              env_rel = f"tasks/{task}/environment"
+              task_record = {
+                  "task_toml_git_blob_sha": git("rev-parse", f"{tb_sha}:{task_toml_rel}"),
+                  "task_toml_sha256": sha256_file(task_root / "task.toml"),
+                  "environment_git_tree_sha": git("rev-parse", f"{tb_sha}:{env_rel}"),
+                  "container_definitions": [],
+                  "external_base_images": [],
+                  "resulting_image_digest": None,
+                  "resulting_image_digest_reason": "Not asserted as a reproducible pre-build digest because task Dockerfiles may execute mutable package-manager/network steps. The immutable pre-execution identity is the pinned environment tree/container definitions plus resolved external base digests; runtime-built image digest must be recorded and equal across A/B/C/D before provider invocation.",
+              }
+              defs = []
+              for p in sorted(env_root.rglob("*")):
+                  if not p.is_file():
+                      continue
+                  name = p.name.lower()
+                  if name == "dockerfile" or name.startswith("dockerfile.") or name in {"docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}:
+                      rel = p.relative_to(repo).as_posix()
+                      defs.append(p)
+                      task_record["container_definitions"].append({
+                          "path": rel,
+                          "git_blob_sha": git("rev-parse", f"{tb_sha}:{rel}"),
+                          "sha256": sha256_file(p),
+                      })
+              if not defs:
+                  raise RuntimeError(f"No Docker/container definition found for {task}")
+              refs=[]
+              for p in defs:
+                  if p.name.lower().startswith("dockerfile"):
+                      refs.extend(dockerfile_external_refs(p))
+                  else:
+                      refs.extend(compose_refs(p))
+              if not refs:
+                  raise RuntimeError(f"No external base image reference found for {task}")
+              for ref in dict.fromkeys(refs):
+                  if ref not in all_refs:
+                      all_refs[ref] = resolve_ref(ref)
+                  task_record["external_base_images"].append(all_refs[ref])
+              out["tasks"][task] = task_record
+
+          if list(out["tasks"]) != tasks:
+              raise RuntimeError("Task order drift")
+          Path("freeze_packet").mkdir(exist_ok=True)
+          with open("freeze_packet/task_environment_identities.json", "w", encoding="utf-8") as f:
+              json.dump(out, f, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+              f.write("\n")
+          with open("freeze_packet/task_environment_identities.sha256", "w", encoding="utf-8") as f:
+              f.write(sha256_file(Path("freeze_packet/task_environment_identities.json")) + "  task_environment_identities.json\n")
+          print(f"TASK_ENVIRONMENT_IDENTITIES={len(out['tasks'])}")
+          print("SOLUTION_OR_REFERENCE_ANSWERS_READ=NO")
+          print("BENCHMARK_AGENT_RUNS=0")
+          print("BENCHMARK_PROVIDER_CALLS=0")
+          PY
+
+      - name: Upload identity packet
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-prebenchmark-identity-freeze
+          path: freeze_packet
+          if-no-files-found: error
