@@ -348,7 +348,10 @@ def retrieve(query: str, state: RetrievalState, budget_tokens: int, *, db_path: 
         text = " ".join(filter(None, [rec.content, rec.command or "", rec.source_ref or ""]))
         terms = _terms(text)
         sources = candidate_source.get(mid, set())
-        local_match = bool(qterms & terms) and bool({"local", "normalized_local"} & sources)
+        # Admission from either indexed lexical source is itself deterministic
+        # evidence of a lexical match; do not discard short (e.g. Greek) tokens
+        # through the >=3 salient-term filter used for task overlap.
+        local_match = bool({"local", "normalized_local"} & sources)
         salient_overlap = len(taskterms & terms)
         file_overlap = 1.0 if current_paths & _paths(rec) else 0.0
         err_match = _signature_match(state.error_signature, text)
