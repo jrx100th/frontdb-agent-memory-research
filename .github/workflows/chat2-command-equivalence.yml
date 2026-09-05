@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  c03-prefix:
+  full-matrix:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,7 +17,52 @@ jobs:
         with:
           python-version: '3.13'
       - run: python -m pip install --disable-pip-version-check pytest
-      - name: C03 command-equivalence regression
+      - name: Original staging suite
+        env:
+          PYTHONPATH: implementation/staging/src
+        run: python -m pytest -q tests/staging/test_v0_memory.py
+      - name: First Chat3 A01-A12 regressions
+        env:
+          PYTHONPATH: implementation/staging/src
+        run: python -m pytest -q tests/staging/test_chat3_adversarial.py
+      - name: First Chat2 variants
+        env:
+          PYTHONPATH: implementation/staging/src
+        run: python -m pytest -q tests/staging/test_chat2_adversarial_variants.py
+      - name: Second-rereview regressions
+        env:
+          PYTHONPATH: implementation/staging/src
+        run: python -m pytest -q tests/staging/test_chat3_second_rereview.py
+      - name: Second-cycle variants
+        env:
+          PYTHONPATH: implementation/staging/src
+        run: python -m pytest -q tests/staging/test_chat2_second_cycle_variants.py
+      - name: Command-equivalence regressions
         env:
           PYTHONPATH: implementation/staging/src
         run: python -m pytest -q tests/staging/test_chat3_command_equivalence.py
+      - name: Message bus suite
+        run: python -m pytest -q tests/message_bus/test_message_bus.py tests/message_bus/test_message_bus_cas.py
+      - name: Compile all deterministic code
+        run: python -m compileall -q implementation/staging/src tests/staging scripts tests/message_bus
+      - name: SQLite FTS5 and integrity check
+        env:
+          PYTHONPATH: implementation/staging/src
+        run: |
+          python - <<'PY'
+          import sqlite3, tempfile
+          from pathlib import Path
+          from minisweagent.memory.store import MemoryStore, MemoryEvent
+          con = sqlite3.connect(':memory:')
+          con.execute("CREATE VIRTUAL TABLE probe USING fts5(content, tokenize='unicode61')")
+          con.execute("INSERT INTO probe(content) VALUES('hello')")
+          assert con.execute("SELECT count(*) FROM probe WHERE probe MATCH 'hello'").fetchone()[0] == 1
+          print('FTS5=PASS')
+          with tempfile.TemporaryDirectory() as td:
+              store = MemoryStore(Path(td) / 'memory.sqlite')
+              store.store(MemoryEvent(task_id='t', step_id=1, content='integrity', kind='TOOL'))
+              with store.connect() as db:
+                  result = db.execute('PRAGMA integrity_check').fetchone()[0]
+              print(f'integrity_check={result}')
+              assert result == 'ok'
+          PY
