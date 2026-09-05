@@ -1,0 +1,147 @@
+name: chat4-prebuild-env-images
+
+on:
+  push:
+    branches:
+      - chat4/prebenchmark-identity-freeze-20260906
+    paths:
+      - .github/workflows/chat4-prebuild-env-images.yml
+
+permissions:
+  contents: read
+
+jobs:
+  prebuild:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        task:
+          - atrx-vep-crispr
+          - batched-eval-parity
+          - cad-model
+          - cargo-flight-dispatch
+          - coq-block-bound
+          - cumulative-layout-shift
+          - data-anonymization
+          - live-database-cutover
+          - music-harmony
+          - uefi-bootkit
+          - production-planning
+          - wdm-design
+    steps:
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+
+      - name: Build environment images only
+        shell: bash
+        env:
+          TASK_ID: ${{ matrix.task }}
+        run: |
+          set -euo pipefail
+          test "$(git -C terminal-bench rev-parse HEAD)" = "2b0442c3c583b710ca8da14c8e601b99f2f1f244"
+          envdir="$GITHUB_WORKSPACE/terminal-bench/tasks/$TASK_ID/environment"
+          test -d "$envdir"
+          mkdir -p prebuild-result
+          project="freeze-${TASK_ID//[^a-zA-Z0-9]/-}"
+          main_id=""
+          if test -f "$envdir/Dockerfile"; then
+            docker build --pull --iidfile prebuild-result/main.iid -t "$project-main:freeze" "$envdir"
+            main_id="$(cat prebuild-result/main.iid)"
+          fi
+          compose=""
+          for candidate in docker-compose.yaml docker-compose.yml compose.yaml compose.yml; do
+            if test -f "$envdir/$candidate"; then compose="$envdir/$candidate"; break; fi
+          done
+          if test -n "$compose"; then
+            docker compose --project-name "$project" -f "$compose" --project-directory "$envdir" build --pull
+          fi
+          python - <<'PY'
+          import json, os, pathlib, subprocess
+          task=os.environ['TASK_ID']
+          project='freeze-' + ''.join(c if c.isalnum() else '-' for c in task)
+          main_path=pathlib.Path('prebuild-result/main.iid')
+          main_id=main_path.read_text().strip() if main_path.exists() else None
+          out=subprocess.check_output(['docker','image','ls','--no-trunc','--format','{{.Repository}}|{{.Tag}}|{{.ID}}'], text=True)
+          compose=[]
+          for line in out.splitlines():
+              repo,tag,iid=line.split('|',2)
+              if repo.startswith(project+'-') and repo != project+'-main':
+                  compose.append({'repository':repo,'tag':tag,'image_id':iid})
+          rec={
+              'task_id':task,
+              'terminal_bench_revision':'2b0442c3c583b710ca8da14c8e601b99f2f1f244',
+              'root_environment_image_id':main_id,
+              'compose_built_image_ids':sorted(compose,key=lambda x:(x['repository'],x['tag'])),
+              'benchmark_agent_executed':False,
+              'provider_called':False,
+          }
+          pathlib.Path('prebuild-result/result.json').write_text(json.dumps(rec,sort_keys=True,separators=(',',':'))+'\n',encoding='utf-8')
+          print('PREBUILD_TASK='+task)
+          print('BENCHMARK_AGENT_EXECUTED=NO')
+          print('PROVIDER_CALLED=NO')
+          PY
+
+      - name: Upload per-task image identity
+        uses: actions/upload-artifact@v4
+        with:
+          name: prebuild-${{ matrix.task }}
+          path: prebuild-result/result.json
+          if-no-files-found: error
+
+  aggregate:
+    needs: prebuild
+    if: always() && needs.prebuild.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download all prebuild identities
+        uses: actions/download-artifact@v4
+        with:
+          pattern: prebuild-*
+          path: prebuild-all
+
+      - name: Aggregate exact image IDs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json,pathlib
+          expected=[
+            'atrx-vep-crispr','batched-eval-parity','cad-model','cargo-flight-dispatch',
+            'coq-block-bound','cumulative-layout-shift','data-anonymization','live-database-cutover',
+            'music-harmony','uefi-bootkit','production-planning','wdm-design'
+          ]
+          recs={}
+          for p in pathlib.Path('prebuild-all').rglob('result.json'):
+              r=json.loads(p.read_text())
+              recs[r['task_id']]=r
+          if set(recs)!=set(expected):
+              raise SystemExit(f'missing/extra prebuild results: {set(expected)^set(recs)}')
+          out={
+            'schema_version':1,
+            'terminal_bench_revision':'2b0442c3c583b710ca8da14c8e601b99f2f1f244',
+            'method':'Prebuilt task environment Docker/Compose images on ubuntu-24.04 without benchmark agent execution or provider calls; image_id is Docker content-addressed image config digest.',
+            'tasks':{t:recs[t] for t in expected},
+          }
+          data=(json.dumps(out,sort_keys=True,separators=(',',':'))+'\n').encode()
+          pathlib.Path('TASK_ENVIRONMENT_PREBUILT_IMAGE_IDS.json').write_bytes(data)
+          pathlib.Path('TASK_ENVIRONMENT_PREBUILT_IMAGE_IDS.sha256').write_text(hashlib.sha256(data).hexdigest()+'  TASK_ENVIRONMENT_PREBUILT_IMAGE_IDS.json\n')
+          print('PREBUILT_TASK_COUNT=12')
+          print('BENCHMARK_AGENT_RUNS=0')
+          print('BENCHMARK_PROVIDER_CALLS=0')
+          PY
+
+      - name: Upload aggregate prebuild packet
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-prebuilt-environment-image-identities
+          path: |
+            TASK_ENVIRONMENT_PREBUILT_IMAGE_IDS.json
+            TASK_ENVIRONMENT_PREBUILT_IMAGE_IDS.sha256
+          if-no-files-found: error
