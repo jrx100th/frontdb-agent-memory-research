@@ -4,13 +4,21 @@
 Agent Memory Efficiency Experiment
 
 ## STATUS
-V0 architecture frozen.
-Staging independently cleared.
-Authoritative mini-SWE-agent v2.4.6 integration candidate is implemented and locally validated at `bb1d85c225798ee249e461bff5a7f841fd57e2a9`.
+V0 architecture remains frozen.
 
-The experiment is **BLOCKED** on the controlled real GLM-5.3 / TokenRouter-compatible per-attempt provider-usage gate.
+The authoritative mini-SWE-agent v2.4.6 integration is tested at:
 
-No final `INTEGRATION_TESTED_SHA` is claimed.
+`81b7e326f91e5efdee43cf11349294c088e2731e`
+
+The real GLM-5.3 / TokenRouter-compatible provider-accounting gate is **PASS**.
+
+Chat3 independently reviewed the authoritative integration and returned:
+
+**PROCEED_TO_BENCHMARK_REPRO_GATE**
+
+The Orchestrator therefore authorizes **Chat4 Benchmark/Reproducibility gate work only**.
+
+Terminal-Bench execution remains **NOT RUN / NOT AUTHORIZED** until Chat4 explicitly clears that gate and the final benchmark manifest is frozen.
 
 ## HARNESS
 mini-SWE-agent v2.4.6
@@ -18,53 +26,127 @@ mini-SWE-agent v2.4.6
 ## UPSTREAM COMMIT
 `a83fcae82d2a08f0ee0c688f9d137b3566c097f8`
 
-## MODEL
-GLM-5.3
+## TESTED IMPLEMENTATION SHA
+`81b7e326f91e5efdee43cf11349294c088e2731e`
 
-## BENCHMARK
-Terminal-Bench 3.0
-
-**NOT RUN**
+## MODEL / PROVIDER
+- model: GLM-5.3
+- route: `z-ai/glm-5.3-free`
+- provider transport: TokenRouter-compatible OpenAI format
+- LiteLLM compatibility hint: `custom_llm_provider="openai"`
+- LiteLLM version: `1.99.0`
 
 ## PRIMARY METRIC
 provider-reported total tokens / successfully solved tasks
 
-## LOCALLY VERIFIED AUTHORITATIVE INTEGRATION EVIDENCE
-- exact upstream v2.4.6 identity at `a83fcae82d2a08f0ee0c688f9d137b3566c097f8` verified;
-- repaired authoritative CI run `33962038284` / job `101295476028` completed successfully at candidate SHA `bb1d85c225798ee249e461bff5a7f841fd57e2a9`;
-- strong T10 PASS: pristine upstream vs patched `memory_enabled=false` provider request/config/tool structure equivalent, with zero memory runtime/DB/fingerprint/retrieval/context/synthetic-message side effects;
-- integrated T1-T10 PASS;
-- authoritative upstream suite: 606 passed, 0 failed, 13 skipped, 0 xfailed;
-- integrated cleared regression matrix: 133 passed, 0 failed, 0 skipped;
-- provider-attempt boundary and controlled mock retry/parse-failure accounting PASS; missing/malformed usage fails closed and no local estimator is substituted;
-- zero extra LLM calls PASS;
-- integrated retrieval profile recorded: ~5 rows `0.003702 s`, ~100 `0.004949 s`, ~1000 `0.021594 s`, ~10000 `0.172598 s` for that profile distribution;
-- frozen experimental constants unchanged.
+## AUTHORITATIVE PROVIDER ACCOUNTING
+Final authoritative provider observation:
 
-## SUPERSEDED DISCOVERY RUN
-Run `33961129462` at `a965157dd6c5c88b604fa1f12da116ba97f0ed66` is not final scientific evidence. It exposed two patch-caused upstream regressions and lacked a real provider route. Those regressions were repaired before the full rerun above.
+- input/prompt tokens: `186`
+- output/completion tokens: `50`
+- total tokens: `236`
+- cached tokens: `0`
+- reasoning tokens: `36`
+- arithmetic consistency: `186 + 50 = 236`
+- accounting status: `COUNTED`
+- provider calls: attempted `1`, countable `1`, extra `0`
+- local estimator substitution: none
 
-## BLOCKED / NOT VERIFIED
-- the controlled real TokenRouter-compatible GLM-5.3 probe did not issue an API request because its environment lacked configured API key, base URL, and model route;
-- real per-attempt provider usage object shape and mapping remain UNVERIFIED;
-- provider input/output/total/cached/reasoning field behavior remains UNVERIFIED on the real route;
-- `integration_tested_sha` remains null / NOT CLAIMED;
-- independent Chat3 authoritative-integration review is deferred until the real-provider gate resolves.
+Earlier provider observations remain explicit superseded provenance; they are not averaged or silently rewritten.
+
+## AUTHORITATIVE IMPLEMENTATION EVIDENCE
+- authoritative implementation CI run `33970854793`, job `101318983117`, head `81b7e326f91e5efdee43cf11349294c088e2731e`, conclusion `success`;
+- Strong T10: **PASS / VERIFIED**;
+- integrated T1-T10: **PASS**;
+- integrated/staging command: `131 passed / 0 failed`;
+- provider-adapter subset: `5 passed / 0 failed`;
+- regression suite: `32 passed / 0 failed`;
+- upstream suite: `606 passed / 0 failed / 13 skipped / 0 xfail`;
+- compileall: **PASS**;
+- SQLite FTS5: **PASS**;
+- SQLite integrity_check: `ok`;
+- zero-extra-LLM: **PASS**;
+- frozen experimental constants changed: **false**.
+
+The command-level test counts above are kept separate and are not summed.
+
+## CHAT3 INDEPENDENT REVIEW
+Published review:
+
+`reports/review/AUTHORITATIVE_INTEGRATION_REVIEW_V0.md`
+
+Durable handoff:
+
+`messages/orchestrator/MSG-000024-chat3-to-orchestrator-authoritative-integration-review.md`
+
+Independent reviewer CI:
+
+- run `33983684722`
+- job `101353282558`
+- reviewer head `ee42f1cf36a6747410e13c16ddf386af34f98c52`
+- conclusion `success`
+- Chat3 adversarial reviewer tests: `14 passed`
+- provider accounting + adapter tests: `13 passed`
+- independent Strong T10: **PASS**
+- compileall: **PASS**
+
+Chat3 verdict: **PROCEED_TO_BENCHMARK_REPRO_GATE**.
+
+No scientific drift was found in the provider-only repair.
+
+## ARTIFACT PROVENANCE RESERVATION
+Authoritative implementation artifact:
+
+- artifact id: `9970944939`
+- current GitHub API/downloaded-byte SHA-256: `339dc5ebf443df4f80d174b574d7a605c1b0a5e13cd767820cdd6af8792e0880`
+- historical workflow upload-log digest: `31b931226ee1bbddb1cd4dc67e395a32821f75323faa79a39e03fa854a596426`
+
+Disposition: **UNRESOLVED_BUT_NONBLOCKING**.
+
+The differing digest observations remain preserved without an invented explanation.
 
 ## PERFORMANCE RESERVATION
-- prior ~8.91 s / ~10k exact-duplicate adversarial stress remains **HIGH PERFORMANCE RISK**;
-- the newer ~0.172598 s / 10k integrated profile is a different distribution and does not invalidate the earlier reservation;
-- no latency threshold is frozen.
+**HIGH PERFORMANCE RISK** remains active.
+
+Duplicate-heavy adversarial retrieval has shown materially higher latency than ordinary distributions. No frozen latency threshold currently exists and no benchmark-timeout incompatibility has yet been demonstrated. Chat4 must retain this reservation and assess benchmark feasibility before execution.
 
 ## MANIFEST
-Candidate: `manifests/integration_manifest.candidate.json` updated.
+Candidate integration manifest:
 
-Final manifest: **NOT FROZEN**.
+`manifests/integration_manifest.candidate.json`
+
+Status: `READY_FOR_INDEPENDENT_REVIEW` evidence has now been independently cleared to the reproducibility gate.
+
+Final benchmark manifest: **NOT FROZEN**.
 
 ## TERMINAL-BENCH
-**NOT RUN**
+Benchmark: Terminal-Bench 3.0
 
-**FORBIDDEN** until the real provider-accounting gate resolves, an exact integration SHA is independently reviewed, and the benchmark/reproducibility gate passes.
+Execution: **NOT RUN**.
+
+Execution remains **FORBIDDEN** until Chat4:
+
+1. freezes the exact benchmark revision and task subset/order;
+2. verifies A/B/C/D condition-harness isolation and reset semantics;
+3. freezes provider/settings/accounting invalidation rules and execution ordering;
+4. verifies condition-neutral retry/accounting/caching treatment;
+5. preserves the artifact and HIGH-performance reservations;
+6. publishes and read-backs the final experiment manifest; and
+7. explicitly returns a benchmark-execution clearance verdict.
+
+## NEXT GATE
+**CHAT4 — BENCHMARK / MEASUREMENT / REPRODUCIBILITY GATE**
+
+Chat4 is authorized to perform reproducibility preparation and freeze the experiment. This authorization does not itself permit Terminal-Bench execution.
+
+## SUPERSEDED HISTORICAL STATES
+The following remain part of provenance and are not erased:
+
+- `BLOCKED_NO_CREDENTIALS_OR_ROUTE`
+- `BLOCKED_PROVIDER_ACCOUNTING_INVALID`
+- LiteLLM provider-inference failure before explicit OpenAI-compatible provider hint
+- earlier pre-provider candidate at `bb1d85c225798ee249e461bff5a7f841fd57e2a9`
+- superseded discovery run `33961129462` at `a965157dd6c5c88b604fa1f12da116ba97f0ed66`
 
 ## Evidence boundary
-Green CI proves the locally executable integration gates only. It does **not** clear the real-provider scientific accounting gate and does not authorize Terminal-Bench.
+Engineering/provider/reviewer gates are now cleared sufficiently to enter Chat4 reproducibility review. They do **not** establish that structured memory improves tokens per success. That claim remains untested until the frozen A/B/C/D Terminal-Bench experiment is executed and independently measured.
