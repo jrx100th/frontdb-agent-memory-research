@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import importlib
 from dataclasses import asdict
 from pathlib import Path
 import sqlite3
@@ -121,9 +122,9 @@ def has_memory_message(messages) -> bool:
 
 
 def install_memory_bombs(monkeypatch):
-    import minisweagent.memory.integration as integration
-    import minisweagent.memory.retrieve as retrieve_mod
-    import minisweagent.memory.store as store_mod
+    integration = importlib.import_module("minisweagent.memory.integration")
+    retrieve_mod = importlib.import_module("minisweagent.memory.retrieve")
+    store_mod = importlib.import_module("minisweagent.memory.store")
 
     class BombRuntime:
         def __init__(self, *args, **kwargs):
