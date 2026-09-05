@@ -98,6 +98,19 @@ The historical forty-zero single-line value is accepted as a read-only legacy se
 
 If concurrent work causes a conflict in `state/`, `architecture/`, or `manifests/`, stop and escalate to the orchestrator. Do not auto-resolve scientific-state conflicts.
 
+## Concurrent global-ID publication
+
+`next-id` without HEAD arguments is advisory only. A concurrent publisher must use optimistic HEAD/CAS publication:
+
+1. read the current `main` HEAD as `expected_head`;
+2. reread inbox/message IDs and allocate the next global ID against that HEAD;
+3. optionally run `message_bus.py next-id --expected-head <sha> --current-head <sha>` as a local stale-HEAD guard;
+4. create the publication commit with `expected_head` as its parent;
+5. update `main` using a non-force fast-forward ref update;
+6. if HEAD changed or the ref update fails, discard/rebuild the unpushed communication commit, reread messages, reallocate the global ID, and retry.
+
+The non-force expected-parent ref update is the publication CAS. This preserves multi-chat autonomy without Redis, a broker, or a lock service. Previously published research commits are never rewritten.
+
 ## Agent Memory Board — Issue #1
 
 Issue #1 is the live short-handoff layer. Durable scientific state remains in Git. Board comments are append-only in meaning; corrections are new `BMSG-XXXXXX` comments rather than edits.

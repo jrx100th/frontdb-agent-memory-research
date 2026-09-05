@@ -115,7 +115,31 @@ def parse_message(path: Path, root: Path) -> dict[str, str]:
     return fields
 
 
-def next_id(root: Path) -> str:
+def _validate_head(value: str) -> str:
+    if not SHA_RE.fullmatch(value):
+        raise ProtocolError(f"invalid HEAD SHA: {value!r}")
+    return value
+
+
+def assert_expected_head(expected_head: str, current_head: str) -> None:
+    expected = _validate_head(expected_head)
+    current = _validate_head(current_head)
+    if expected != current:
+        raise ProtocolError(
+            f"HEAD changed from {expected} to {current}; reread messages, reallocate ID, and retry"
+        )
+
+
+def next_id(
+    root: Path,
+    *,
+    expected_head: str | None = None,
+    current_head: str | None = None,
+) -> str:
+    if (expected_head is None) != (current_head is None):
+        raise ProtocolError("expected_head and current_head must be supplied together")
+    if expected_head is not None:
+        assert_expected_head(expected_head, current_head)
     highest = 0
     seen: set[str] = set()
     for path in _message_files(root):
@@ -225,7 +249,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", help="repository root (default: script parent repo or FRONTDB_REPO_ROOT)")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("validate")
-    sub.add_parser("next-id")
+    p_next = sub.add_parser("next-id")
+    p_next.add_argument("--expected-head")
+    p_next.add_argument("--current-head")
     p_inbox = sub.add_parser("inbox"); p_inbox.add_argument("role")
     sub.add_parser("status")
     p_seen = sub.add_parser("mark-seen"); p_seen.add_argument("role"); p_seen.add_argument("commit"); p_seen.add_argument("message")
@@ -239,7 +265,7 @@ def main(argv: list[str] | None = None) -> int:
                 return 1
             print("VALID")
         elif args.cmd == "next-id":
-            print(next_id(root))
+            print(next_id(root, expected_head=args.expected_head, current_head=args.current_head))
         elif args.cmd == "inbox":
             for item in inbox(root, args.role): print(f"{item['MESSAGE_ID']}\t{item['_PATH']}")
         elif args.cmd == "status":
