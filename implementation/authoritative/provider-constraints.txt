@@ -1,0 +1,4 @@
+# Frozen only for the authoritative GLM-5.3 / TokenRouter integration gate.
+# Diagnostic run 33970416297 resolved this exact version and verified that
+# custom_llm_provider="openai" preserves outbound model z-ai/glm-5.3-free.
+litellm==1.99.0
