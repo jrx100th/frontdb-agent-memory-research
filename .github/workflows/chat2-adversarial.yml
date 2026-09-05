@@ -1,0 +1,23 @@
+name: chat2-adversarial
+
+on:
+  push:
+    branches:
+      - chat2/adversarial-fix-20260905
+
+permissions:
+  contents: read
+
+jobs:
+  adversarial:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install --disable-pip-version-check pytest
+      - name: Run Chat3 A01-A12 against current staging implementation
+        env:
+          PYTHONPATH: implementation/staging/src
+        run: python -m pytest -q tests/staging/test_chat3_adversarial.py
