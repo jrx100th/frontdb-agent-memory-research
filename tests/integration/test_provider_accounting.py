@@ -2,12 +2,19 @@ from __future__ import annotations
 
 import json
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 from tenacity import Retrying, retry_if_exception_type, stop_after_attempt, wait_none
 
 from minisweagent.exceptions import FormatError
-from minisweagent.instrumentation.attempt_accounting import COUNTED, INVALID, UNKNOWN, ZERO_CONFIRMED
+from minisweagent.instrumentation.attempt_accounting import (
+    COUNTED,
+    INVALID,
+    UNKNOWN,
+    ZERO_CONFIRMED,
+    normalize_response_usage,
+)
 from minisweagent.models.litellm_model import LitellmModel
 import minisweagent.models.litellm_model as lm
 
@@ -181,6 +188,21 @@ def test_missing_usage_is_token_accounting_invalid(monkeypatch):
     assert record.response_received is True
     assert record.accounting_status == INVALID
     assert model.attempt_ledger.aggregate()["accounting_status"] == INVALID
+
+
+def test_unconstrained_mock_usage_fails_closed_without_crashing():
+    """Regression for authoritative upstream tests that use a bare Mock response.
+
+    Bare Mock objects fabricate ``usage``, ``model_dump`` and ``items``
+    attributes. They must be treated as missing scientific usage evidence, not
+    traversed as if they were provider mappings.
+    """
+    response = Mock()
+    response.model_dump.return_value = {"test": "response"}
+    normalized = normalize_response_usage(response)
+    assert normalized["accounting_status"] == INVALID
+    assert normalized["raw_usage"] is None
+    assert normalized["request_id"] is None
 
 
 def test_malformed_or_nonadditive_usage_is_invalid(monkeypatch):
