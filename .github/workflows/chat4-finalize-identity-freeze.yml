@@ -1,0 +1,235 @@
+name: chat4-finalize-identity-freeze
+
+on:
+  push:
+    branches:
+      - chat4/prebenchmark-identity-freeze-20260906
+    paths:
+      - .github/workflows/chat4-finalize-identity-freeze.yml
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    env:
+      OLD_MANIFEST_SHA256: fb5ace0c0f211cd37aad473845d7c2e818d0a5e518651919a0a5a67437c3449e
+      EXPECTED_BASE_SHA256: f76d53a0e94e3837023542b48c5b2226b21c3ad37cae446272a2743b7579ee5d
+      IDENTITY_ARTIFACT_RUN_ID: '33992487830'
+      IDENTITY_ARTIFACT_ID: '9977043205'
+      IDENTITY_ARTIFACT_GITHUB_SHA256: 7a10435e2f75d3a42636eb13bb2c791e91fb386efa5da1ee6daf50e75ac59750
+      TOKENROUTER_BASE_URL: ${{ secrets.TOKENROUTER_BASE_URL }}
+    steps:
+      - name: Checkout audit branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download independently generated identity packet
+        uses: actions/download-artifact@v4
+        with:
+          name: chat4-prebenchmark-identity-freeze
+          path: freeze-input
+          github-token: ${{ github.token }}
+          run-id: 33992487830
+
+      - name: Generate corrected canonical manifest and identity packets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import copy, hashlib, json, os
+          from pathlib import Path
+
+          OLD_SHA=os.environ['OLD_MANIFEST_SHA256']
+          EXPECTED_BASE=os.environ['EXPECTED_BASE_SHA256']
+          manifest_path=Path('manifests/experiment_manifest.final.json')
+          old_bytes=manifest_path.read_bytes()
+          assert hashlib.sha256(old_bytes).hexdigest()==OLD_SHA
+          old=json.loads(old_bytes)
+          assert old['final_frozen'] is True
+          assert old['benchmark']['execution_status']=='NOT_RUN'
+          assert old['benchmark']['task_ids']==[
+            'atrx-vep-crispr','batched-eval-parity','cad-model','cargo-flight-dispatch',
+            'coq-block-bound','cumulative-layout-shift','data-anonymization','live-database-cutover',
+            'music-harmony','uefi-bootkit','production-planning','wdm-design'
+          ]
+          assert [x['condition_order'] for x in old['execution']['schedule']]==[
+            ['A','B','C','D'],['B','C','D','A'],['C','D','A','B'],['D','A','B','C'],
+            ['A','B','C','D'],['B','C','D','A'],['C','D','A','B'],['D','A','B','C'],
+            ['A','B','C','D'],['B','C','D','A'],['C','D','A','B'],['D','A','B','C']
+          ]
+          assert old['harness']['condition_runner_sha']=='ff6a1303acb865c0e0689a18eb7fceb7af4e0cdc'
+          assert old['harness']['scientific_baseline_sha']=='81b7e326f91e5efdee43cf11349294c088e2731e'
+          assert old['benchmark']['revision']=='2b0442c3c583b710ca8da14c8e601b99f2f1f244'
+
+          provider_packet=json.loads(Path('freeze-input/provider_base_identity.json').read_text())
+          env_packet=json.loads(Path('freeze-input/task_environment_identities.json').read_text())
+          assert provider_packet['provider_api_base_expected_sha256']==EXPECTED_BASE
+          assert provider_packet['secret_value_published'] is False
+          assert provider_packet['api_key_accessed_or_hashed'] is False
+          runtime=os.environ.get('TOKENROUTER_BASE_URL')
+          assert runtime
+          runtime_sha=hashlib.sha256(runtime.encode('utf-8')).hexdigest()
+          assert runtime_sha==EXPECTED_BASE
+          assert len(env_packet['tasks'])==12
+          assert list(env_packet['tasks'])==old['benchmark']['task_ids']
+          assert env_packet['terminal_bench_revision']==old['benchmark']['revision']
+
+          def canon(obj):
+              return (json.dumps(obj,sort_keys=True,separators=(',',':'),ensure_ascii=True)+'\n').encode('utf-8')
+
+          expected_task_identity={}
+          for task in old['benchmark']['task_ids']:
+              rec=env_packet['tasks'][task]
+              assert rec['environment_git_tree_sha']
+              assert rec['task_toml_git_blob_sha']
+              assert rec['task_toml_sha256']
+              assert rec['container_definitions']
+              assert rec['external_base_images']
+              for base in rec['external_base_images']:
+                  assert base['resolved_registry_manifest_digest'].startswith('sha256:')
+                  assert base['resolved_linux_amd64_manifest_digest'].startswith('sha256:')
+              expected_task_identity[task]=hashlib.sha256(canon(rec)).hexdigest()
+
+          Path('reproducibility').mkdir(exist_ok=True)
+          provider_public={
+              'schema_version':1,
+              'provider_api_base_expected_sha256':EXPECTED_BASE,
+              'canonicalization':provider_packet['canonicalization'],
+              'runtime_preflight_rule':provider_packet['preflight_rule'],
+              'secret_value_published':False,
+              'api_key_accessed_or_hashed':False,
+              'source_audit_run':int(os.environ['IDENTITY_ARTIFACT_RUN_ID']),
+              'source_artifact_id':int(os.environ['IDENTITY_ARTIFACT_ID']),
+              'source_artifact_github_sha256':os.environ['IDENTITY_ARTIFACT_GITHUB_SHA256'],
+          }
+          Path('reproducibility/PROVIDER_BASE_IDENTITY.json').write_bytes(canon(provider_public))
+
+          env_packet['expected_task_environment_identity_sha256']=expected_task_identity
+          env_packet['identity_definition']='SHA-256 of each task record canonical JSON using sort_keys=true,separators=(comma,colon),ensure_ascii=true plus one LF. Record binds task.toml, complete environment Git tree, container-definition hashes, and resolved external base-image digests.'
+          env_packet['prebuild_note']='A supplementary no-agent/no-provider prebuild audit was attempted. Resulting image IDs are not used as the primary expected identity because task builds may include mutable network/package-manager steps and cross-build bit-for-bit determinism was not established. Runtime-built image digest remains mandatory and must be identical across A/B/C/D for a task before provider invocation.'
+          env_packet['source_audit_run']=int(os.environ['IDENTITY_ARTIFACT_RUN_ID'])
+          env_packet['source_artifact_id']=int(os.environ['IDENTITY_ARTIFACT_ID'])
+          env_packet['source_artifact_github_sha256']=os.environ['IDENTITY_ARTIFACT_GITHUB_SHA256']
+          env_bytes=canon(env_packet)
+          env_sha=hashlib.sha256(env_bytes).hexdigest()
+          Path('reproducibility/TASK_ENVIRONMENT_IDENTITIES.json').write_bytes(env_bytes)
+          Path('reproducibility/TASK_ENVIRONMENT_IDENTITIES.sha256').write_text(env_sha+'  reproducibility/TASK_ENVIRONMENT_IDENTITIES.json\n',encoding='utf-8')
+
+          new=copy.deepcopy(old)
+          new['provider']['api_base_binding']='TOKENROUTER_BASE_URL remains external runtime configuration; exact URL is not committed. Its exact pre-execution SHA-256 is frozen in provider.api_base_expected_sha256 and must match before every provider invocation.'
+          new['provider']['api_base_expected_sha256']=EXPECTED_BASE
+          new['provider']['api_base_hash_canonicalization']='SHA-256 over exact TOKENROUTER_BASE_URL environment string encoded as UTF-8; no trimming or normalization.'
+          new['provider']['api_base_preflight_rule']='Before every benchmark provider invocation, compute SHA-256 over exact runtime TOKENROUTER_BASE_URL UTF-8 bytes and require equality with provider.api_base_expected_sha256. Mismatch => CONFIGURATION_INVALID and ABORT_BEFORE_PROVIDER_CALL. API key remains secret and MUST NOT be hashed into public artifacts.'
+          new['task_environment_identity_freeze']={
+              'count':12,
+              'method':env_packet['method'],
+              'packet_path':'reproducibility/TASK_ENVIRONMENT_IDENTITIES.json',
+              'packet_sha256':env_sha,
+              'expected_task_environment_identity_sha256':expected_task_identity,
+              'resulting_image_digest_policy':'Primary expected identity is the immutable composite packet because deterministic byte-identical rebuilds were not established for all network/package-manager-based task images. Before provider invocation, the runtime-built image digest is additionally mandatory and must be identical across A/B/C/D for the same task.',
+              'runtime_preflight_rule':env_packet['runtime_preflight_rule'],
+          }
+          new['supersedes_manifest_sha256']=OLD_SHA
+          new['supersession_reason']='PRE_EXECUTION_REPRODUCIBILITY_IDENTITY_COMPLETION'
+          new['final_frozen']=True
+
+          allowed_prefixes={
+              ('provider','api_base_binding'),
+              ('provider','api_base_expected_sha256'),
+              ('provider','api_base_hash_canonicalization'),
+              ('provider','api_base_preflight_rule'),
+              ('task_environment_identity_freeze',),
+              ('supersedes_manifest_sha256',),
+              ('supersession_reason',),
+          }
+          changes=[]
+          MISSING=object()
+          def walk(a,b,path=()):
+              if isinstance(a,dict) and isinstance(b,dict):
+                  for k in sorted(set(a)|set(b)):
+                      walk(a.get(k,MISSING),b.get(k,MISSING),path+(k,))
+              elif isinstance(a,list) and isinstance(b,list):
+                  if len(a)!=len(b):
+                      changes.append(path)
+                  else:
+                      for i,(x,y) in enumerate(zip(a,b)):
+                          walk(x,y,path+(str(i),))
+              elif a is MISSING or b is MISSING or a!=b:
+                  changes.append(path)
+          walk(old,new)
+          def permitted(p):
+              return any(p[:len(prefix)]==prefix for prefix in allowed_prefixes)
+          illegal=[p for p in changes if not permitted(p)]
+          if illegal:
+              raise SystemExit('ILLEGAL_MANIFEST_DRIFT='+json.dumps(illegal))
+
+          new_bytes=canon(new)
+          new_sha=hashlib.sha256(new_bytes).hexdigest()
+          manifest_path.write_bytes(new_bytes)
+          Path('reproducibility/FINAL_MANIFEST_SHA256.txt').write_text(
+              new_sha+'  manifests/experiment_manifest.final.json\n'
+              +'SUPERSEDES_MANIFEST_SHA256='+OLD_SHA+'\n'
+              +'REASON=PRE_EXECUTION_REPRODUCIBILITY_IDENTITY_COMPLETION\n',encoding='utf-8')
+          audit={
+              'schema_version':1,
+              'old_manifest_sha256':OLD_SHA,
+              'new_manifest_sha256':new_sha,
+              'reason':'PRE_EXECUTION_REPRODUCIBILITY_IDENTITY_COMPLETION',
+              'changed_json_paths':['.'.join(p) for p in changes],
+              'illegal_changes':[],
+              'task_subset_changed':False,
+              'schedule_changed':False,
+              'scientific_implementation_changed':False,
+              'benchmark_agent_runs':0,
+              'benchmark_provider_calls':0,
+              'benchmark_results_observed':0,
+              'provider_secret_exposed':False,
+              'api_key_hashed':False,
+          }
+          Path('reproducibility/PRE_EXECUTION_IDENTITY_DIFF_AUDIT.json').write_bytes(canon(audit))
+          print('MANIFEST_IDENTITY_CORRECTION=PASS')
+          print('OLD_MANIFEST_SHA256='+OLD_SHA)
+          print('NEW_MANIFEST_SHA256='+new_sha)
+          print('TASK_COUNT=12')
+          print('PROVIDER_SECRET_EXPOSED=NO')
+          print('API_KEY_HASHED=NO')
+          print('BENCHMARK_AGENT_RUNS=0')
+          print('BENCHMARK_PROVIDER_CALLS=0')
+          print('BENCHMARK_RESULTS_OBSERVED=0')
+          PY
+
+      - name: Verify exact files and commit correction on audit branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git status --short
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          m=Path('manifests/experiment_manifest.final.json').read_bytes()
+          h=hashlib.sha256(m).hexdigest()
+          r=Path('reproducibility/FINAL_MANIFEST_SHA256.txt').read_text()
+          assert r.startswith(h+'  manifests/experiment_manifest.final.json\n')
+          j=json.loads(m)
+          assert j['final_frozen'] is True
+          assert j['supersedes_manifest_sha256']=='fb5ace0c0f211cd37aad473845d7c2e818d0a5e518651919a0a5a67437c3449e'
+          assert j['supersession_reason']=='PRE_EXECUTION_REPRODUCIBILITY_IDENTITY_COMPLETION'
+          assert j['provider']['api_base_expected_sha256']=='f76d53a0e94e3837023542b48c5b2226b21c3ad37cae446272a2743b7579ee5d'
+          assert len(j['task_environment_identity_freeze']['expected_task_environment_identity_sha256'])==12
+          print('FINAL_CANONICAL_READBACK=PASS')
+          PY
+          git config user.name 'jrx100th'
+          git config user.email 'jenith.ch15@gmail.com'
+          git add manifests/experiment_manifest.final.json \
+                  reproducibility/FINAL_MANIFEST_SHA256.txt \
+                  reproducibility/PROVIDER_BASE_IDENTITY.json \
+                  reproducibility/TASK_ENVIRONMENT_IDENTITIES.json \
+                  reproducibility/TASK_ENVIRONMENT_IDENTITIES.sha256 \
+                  reproducibility/PRE_EXECUTION_IDENTITY_DIFF_AUDIT.json
+          git commit -m '[CHAT4] correct final pre-benchmark identity freeze'
+          git push origin HEAD:chat4/prebenchmark-identity-freeze-20260906
