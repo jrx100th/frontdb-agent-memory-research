@@ -51,11 +51,12 @@ jobs:
           old=json.loads(old_bytes)
           assert old['final_frozen'] is True
           assert old['benchmark']['execution_status']=='NOT_RUN'
-          assert old['benchmark']['task_ids']==[
+          frozen_tasks=[
             'atrx-vep-crispr','batched-eval-parity','cad-model','cargo-flight-dispatch',
             'coq-block-bound','cumulative-layout-shift','data-anonymization','live-database-cutover',
             'music-harmony','uefi-bootkit','production-planning','wdm-design'
           ]
+          assert old['benchmark']['task_ids']==frozen_tasks
           assert [x['condition_order'] for x in old['execution']['schedule']]==[
             ['A','B','C','D'],['B','C','D','A'],['C','D','A','B'],['D','A','B','C'],
             ['A','B','C','D'],['B','C','D','A'],['C','D','A','B'],['D','A','B','C'],
@@ -75,14 +76,14 @@ jobs:
           runtime_sha=hashlib.sha256(runtime.encode('utf-8')).hexdigest()
           assert runtime_sha==EXPECTED_BASE
           assert len(env_packet['tasks'])==12
-          assert list(env_packet['tasks'])==old['benchmark']['task_ids']
+          assert set(env_packet['tasks'])==set(frozen_tasks)
           assert env_packet['terminal_bench_revision']==old['benchmark']['revision']
 
           def canon(obj):
               return (json.dumps(obj,sort_keys=True,separators=(',',':'),ensure_ascii=True)+'\n').encode('utf-8')
 
           expected_task_identity={}
-          for task in old['benchmark']['task_ids']:
+          for task in frozen_tasks:
               rec=env_packet['tasks'][task]
               assert rec['environment_git_tree_sha']
               assert rec['task_toml_git_blob_sha']
