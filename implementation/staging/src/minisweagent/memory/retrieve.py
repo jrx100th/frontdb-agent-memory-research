@@ -8,7 +8,7 @@ import sqlite3
 
 from .context_builder import serialized_message_units
 from .fingerprint import compare_fingerprint, fingerprint
-from .store import MemoryRecord, _normalize_command, _normalize_search_text, _row_to_record
+from .store import MemoryRecord, _normalize_command, _normalize_search_text, _raw_command_sha256, _row_to_record
 
 RETRIEVAL_BUDGET = 2048
 MAX_SELECTED = 8
@@ -124,6 +124,8 @@ def _dedup_equivalent(a: MemoryRecord, b: MemoryRecord) -> bool:
     if a.verification_status != b.verification_status:
         return False
     if _norm_optional(a.outcome) != _norm_optional(b.outcome):
+        return False
+    if _raw_command_sha256(a.command) != _raw_command_sha256(b.command):
         return False
     if _normalize_command(a.command) != _normalize_command(b.command):
         return False
