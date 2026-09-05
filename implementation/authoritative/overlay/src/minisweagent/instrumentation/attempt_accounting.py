@@ -36,24 +36,36 @@ class ProviderAttempt:
 
 
 def _as_dict(value: Any) -> dict | None:
+    """Return a real mapping or None; never trust duck-typed mock/model objects.
+
+    Upstream unit tests intentionally use unconstrained ``Mock`` responses. A
+    ``Mock`` fabricates ``model_dump``/``items`` attributes on access, so simply
+    checking ``hasattr`` can turn absent provider usage into another Mock and
+    crash audit traversal. Provider usage is scientific evidence only when it
+    materializes as an actual dict-like mapping; otherwise fail closed.
+    """
     if value is None:
         return None
     if isinstance(value, dict):
         return value
     if hasattr(value, "model_dump"):
         try:
-            return value.model_dump(mode="json")
+            dumped = value.model_dump(mode="json")
         except TypeError:
             try:
-                return value.model_dump()
+                dumped = value.model_dump()
             except Exception:
-                return None
+                dumped = None
         except Exception:
-            return None
+            dumped = None
+        if isinstance(dumped, dict):
+            return dumped
+        return None
     try:
-        return dict(value)
+        converted = dict(value)
     except Exception:
         return None
+    return converted if isinstance(converted, dict) else None
 
 
 def _contains_key(value: Any, needle: str) -> bool:
@@ -83,9 +95,10 @@ def normalize_response_usage(response: Any) -> dict[str, Any]:
     if usage_obj is None and hasattr(response, "usage"):
         usage_obj = getattr(response, "usage")
     usage = _as_dict(usage_obj)
-    request_id = data.get("id") if isinstance(data, dict) else None
-    if request_id is None and hasattr(response, "id"):
-        request_id = getattr(response, "id")
+    request_id_obj = data.get("id") if isinstance(data, dict) else None
+    if request_id_obj is None and hasattr(response, "id"):
+        request_id_obj = getattr(response, "id")
+    request_id = request_id_obj if isinstance(request_id_obj, str) else None
     if not usage:
         return {
             "request_id": request_id,
