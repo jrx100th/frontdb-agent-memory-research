@@ -63,6 +63,7 @@ jobs:
           set -euo pipefail
           cp -a upstream-pristine upstream-patched
           python implementation/authoritative/apply_integration.py --upstream upstream-patched
+          python implementation/authoritative/apply_condition_runner.py --upstream upstream-patched
           git -C upstream-patched diff --check
           git -C upstream-patched diff --binary > integration_artifacts/authoritative.patch
           sha256sum integration_artifacts/authoritative.patch | tee integration_artifacts/patch_sha256.txt
@@ -104,6 +105,13 @@ jobs:
         run: |
           set -euo pipefail
           python -m pytest -q tests/integration/test_integrated_memory.py
+
+      - name: Deterministic A/B/C/D condition purity tests
+        env:
+          PYTHONPATH: upstream-patched/src
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/integration/test_condition_runner.py
 
       - name: Provider-attempt accounting mock integration tests
         env:
