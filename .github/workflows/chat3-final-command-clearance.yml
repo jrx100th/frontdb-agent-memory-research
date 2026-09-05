@@ -1,0 +1,33 @@
+name: chat3-final-command-clearance
+
+on:
+  push:
+    branches:
+      - chat3/final-command-clearance-20260905
+
+permissions:
+  contents: read
+
+jobs:
+  clearance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install --disable-pip-version-check pytest
+      - name: Chat3 new focused command attacks
+        env:
+          PYTHONPATH: implementation/staging/src
+        run: python -m pytest -q tests/review/test_chat3_final_command_clearance.py
+      - name: Current committed command regressions
+        env:
+          PYTHONPATH: implementation/staging/src
+        run: python -m pytest -q tests/staging/test_chat3_command_equivalence.py tests/staging/test_chat2_command_raw_collision.py
+      - name: Previously cleared retrieval freshness spot checks
+        env:
+          PYTHONPATH: implementation/staging/src
+        run: python -m pytest -q tests/staging/test_chat3_second_rereview.py tests/staging/test_chat3_adversarial.py
+      - name: Compile reviewer evidence
+        run: python -m compileall -q tests/review implementation/staging/src
