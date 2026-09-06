@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "experiment_version": "v0-pre-integration-1",
+  "full_comparative_experiment_status": "INFRASTRUCTURE_INVALID_BLOCKED",
+  "reason": "The frozen requirement that A/B/C/D use the exact same runtime Docker image identity cannot be satisfied reproducibly when each condition independently rebuilds the Terminal-Bench environment on a fresh runner.",
+  "resume_forbidden": true,
+  "scientific_variable_intentionally_changed": false,
+  "proof": {
+    "task_id": "atrx-vep-crispr",
+    "preserved_a_runtime_image_id": "sha256:f72bb3459aca556dfc0202acc1f74f3b10d558bc25af2318b7dd496a90be1638",
+    "fresh_provider_free_b_runtime_image_id": "sha256:05cd1d0f181196cbf73dd18c0d4c3c13fcbe937ee370c731f0d587ce3dbe4770",
+    "strict_gate_workflow_run": 34051365147
+  },
+  "preserved_scientific_provenance": {
+    "workflow_run": 34021511221,
+    "execution_sha": "40d4901f8d3a25179da46046ad87d47060de423a",
+    "artifact_id": 9990156639,
+    "task_id": "atrx-vep-crispr",
+    "condition": "A",
+    "success": false,
+    "verifier_reward": 0,
+    "agent_exception_type": "AgentTimeoutError",
+    "provider_attempt_count": 56,
+    "provider_attempts_counted": 42,
+    "provider_attempts_unknown": 14,
+    "known_counted_provider_token_subtotal": 938612,
+    "provider_total_tokens": null,
+    "accounting_status": "TOKEN_ACCOUNTING_INVALID",
+    "statistically_combinable_with_v1": false,
+    "rerun_as_v0": false
+  }
+}
