@@ -1,0 +1,51 @@
+name: Prepare frozen benchmark job
+description: Reconstruct exact scientific source and host execution dependencies without provider calls.
+runs:
+  using: composite
+  steps:
+    - name: Verify frozen repository identities
+      shell: bash
+      run: |
+        set -euo pipefail
+        test "$(sha256sum manifests/experiment_manifest.final.json | awk '{print $1}')" = "88a98a4e191729b0d9a00afb40ade9c2985b3e4fa160034df58a4b01e83ebb4a"
+        test "$(sha256sum reproducibility/TASK_ENVIRONMENT_IDENTITIES.json | awk '{print $1}')" = "26566fea65da18291160d2f45598942182d4edf23e1b95485734bc196a67945e"
+        git fetch --quiet origin main
+        test "$(git show origin/main:manifests/experiment_manifest.final.json | sha256sum | awk '{print $1}')" = "88a98a4e191729b0d9a00afb40ade9c2985b3e4fa160034df58a4b01e83ebb4a"
+        test "$(git show origin/main:reproducibility/TASK_ENVIRONMENT_IDENTITIES.json | sha256sum | awk '{print $1}')" = "26566fea65da18291160d2f45598942182d4edf23e1b95485734bc196a67945e"
+        printf '%s\n' "$GITHUB_SHA" > execution-harness-sha.txt
+
+    - name: Reconstruct exact frozen mini-SWE source
+      shell: bash
+      run: |
+        set -euo pipefail
+        rm -rf frozen-build frozen-mini.tar.gz
+        mkdir -p frozen-build
+        git clone --quiet https://github.com/SWE-agent/mini-swe-agent.git frozen-build/mini
+        git -C frozen-build/mini checkout --quiet a83fcae82d2a08f0ee0c688f9d137b3566c097f8
+        test "$(git -C frozen-build/mini rev-parse HEAD)" = "a83fcae82d2a08f0ee0c688f9d137b3566c097f8"
+        test "$(git -C frozen-build/mini rev-parse HEAD:src/minisweagent/config/mini.yaml)" = "8b72f71f8092ae805ec43221dbeaeefc2340cd3e"
+        test "$(git -C frozen-build/mini rev-parse HEAD:src/minisweagent/agents/default.py)" = "ca310e37d7c61888c576f73f5e1790ac769407b1"
+        test "$(git -C frozen-build/mini rev-parse HEAD:src/minisweagent/models/litellm_model.py)" = "84b5d548df0e10cbe820862399379bbde69a6fa8"
+        test "$(git -C frozen-build/mini rev-parse HEAD:src/minisweagent/models/utils/retry.py)" = "055d4b6fd4f57c1420dfa7622a8fe24148354548"
+        test "$(git -C frozen-build/mini rev-parse HEAD:src/minisweagent/models/utils/actions_toolcall.py)" = "8209113c4a1663d34468be6106b5661ec9e0be62"
+        git worktree add --detach frozen-build/runner ff6a1303acb865c0e0689a18eb7fceb7af4e0cdc
+        python frozen-build/runner/implementation/authoritative/apply_integration.py --upstream frozen-build/mini
+        python frozen-build/runner/implementation/authoritative/apply_condition_runner.py --upstream frozen-build/mini
+        cp frozen-build/runner/implementation/authoritative/provider-constraints.txt frozen-build/provider-constraints.txt
+        test "$(grep -E '^litellm==' frozen-build/provider-constraints.txt)" = "litellm==1.99.0"
+        python -m compileall -q frozen-build/mini/src benchmark_execution
+        tar -C frozen-build -czf frozen-mini.tar.gz mini
+        sha256sum frozen-mini.tar.gz > frozen-mini.tar.gz.sha256
+
+    - name: Install exact Harbor host harness
+      shell: bash
+      run: |
+        set -euo pipefail
+        python -m pip install --quiet 'harbor==0.18.0'
+        chmod +x benchmark_execution/run_task.sh
+        python - <<'PY'
+        from benchmark_execution.frozen_harbor_agent import FrozenMiniSweAgent, EXPECTED_OPENAI_VERSION
+        assert FrozenMiniSweAgent.name() == 'mini-swe-agent'
+        assert EXPECTED_OPENAI_VERSION == '2.54.0'
+        print('FROZEN_HOST_HARNESS_READY')
+        PY
