@@ -435,21 +435,20 @@ jobs:
     steps:
       - name: Checkout execution harness
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Download all preserved task evidence
+      - name: Download all raw task artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: chat4-raw-task-*
           path: collected
-          merge-multiple: true
-      - name: Build condition-neutral frozen aggregation
-        run: python benchmark_execution/aggregate.py --input collected --output aggregate-output
-      - name: Preserve aggregation packet
-        if: ${{ always() }}
+          merge-multiple: false
+      - name: Assemble raw bundle and aggregate metrics
+        run: |
+          set -euo pipefail
+          python benchmark_execution/aggregate.py --input-root collected --output-dir final-results
+      - name: Upload final raw bundle and aggregate
         uses: actions/upload-artifact@v4
         with:
-          name: chat4-frozen-benchmark-aggregate
-          path: aggregate-output
-          if-no-files-found: warn
+          name: chat4-final-frozen-benchmark-results
+          path: final-results
+          if-no-files-found: error
           retention-days: 90
