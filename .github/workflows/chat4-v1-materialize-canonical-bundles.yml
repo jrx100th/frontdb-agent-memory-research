@@ -1,0 +1,177 @@
+name: chat4-v1-materialize-canonical-bundles
+
+on:
+  push:
+    branches:
+      - chat4/v1-environment-materialization-20260907
+    paths:
+      - .github/workflows/chat4-v1-materialize-canonical-bundles.yml
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  TOKENROUTER_BASE_URL: ""
+  TOKENROUTER_API_KEY: ""
+  PYTHONPATH: ${{ github.workspace }}
+
+concurrency:
+  group: chat4-v1-canonical-environment-bundles
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    name: canonical-${{ matrix.order }}-${{ matrix.task }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        include:
+          - { order: 1, task: atrx-vep-crispr }
+          - { order: 2, task: batched-eval-parity }
+          - { order: 3, task: cad-model }
+          - { order: 4, task: cargo-flight-dispatch }
+          - { order: 5, task: coq-block-bound }
+          - { order: 6, task: cumulative-layout-shift }
+          - { order: 7, task: data-anonymization }
+          - { order: 8, task: live-database-cutover }
+          - { order: 9, task: music-harmony }
+          - { order: 10, task: uefi-bootkit }
+          - { order: 11, task: production-planning }
+          - { order: 12, task: wdm-design }
+    steps:
+      - name: Checkout v1 preparation branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+
+      - name: Assert zero-provider boundary
+        run: |
+          set -euo pipefail
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          test "$(git -C terminal-bench rev-parse HEAD)" = "2b0442c3c583b710ca8da14c8e601b99f2f1f244"
+          echo PROVIDER_CALLS=0
+
+      - name: Verify exact frozen task/environment source identity
+        run: |
+          set -euo pipefail
+          python benchmark_execution/v1_verify_task_source.py \
+            --repo-root . --tb-root terminal-bench \
+            --task '${{ matrix.task }}' --output source-proof.json
+
+      - name: Authenticate controlled GHCR transport
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Build canonical complete task environment bundle exactly once
+        env:
+          MATRIX_TASK: ${{ matrix.task }}
+          MATRIX_ORDER: ${{ matrix.order }}
+        run: |
+          set -euo pipefail
+          python benchmark_execution/v1_materialize_bundle.py \
+            --repo-root . \
+            --task-root "terminal-bench/tasks/${MATRIX_TASK}" \
+            --task "$MATRIX_TASK" \
+            --task-order "$MATRIX_ORDER" \
+            --registry-owner "$GITHUB_REPOSITORY_OWNER" \
+            --transport-tag "canonical-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --source-proof source-proof.json \
+            --output bundle.json
+          python - <<'PY'
+          import json, os
+          r=json.load(open('bundle.json'))
+          assert r['task_id'] == os.environ['MATRIX_TASK']
+          assert r['provider_calls'] == 0
+          assert r['per_condition_rebuild_forbidden'] is True
+          assert r['primary_service'] == 'main'
+          assert r['primary_main_immutable_image_reference'].count('@sha256:') == 1
+          assert all('@sha256:' in x for x in r['service_identity'].values())
+          print('CANONICAL_V1_TASK_BUNDLE=PASS')
+          print('PROVIDER_CALLS=0')
+          PY
+
+      - name: Upload canonical task bundle record
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-canonical-bundle-${{ matrix.order }}-${{ matrix.task }}
+          path: |
+            bundle.json
+            source-proof.json
+          if-no-files-found: error
+          retention-days: 90
+
+  compile-manifest:
+    name: freeze-canonical-v1-task-image-manifest
+    needs: materialize
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout v1 preparation branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all canonical bundle records
+        uses: actions/download-artifact@v4
+        with:
+          pattern: v1-canonical-bundle-*
+          path: v1-canonical-bundles
+          merge-multiple: false
+
+      - name: Compile canonical immutable environment manifest
+        run: |
+          set -euo pipefail
+          python benchmark_execution/v1_collect_bundles.py \
+            --input-root v1-canonical-bundles \
+            --environment-packet reproducibility/TASK_ENVIRONMENT_IDENTITIES.json \
+            --output reproducibility/v1_task_images.json \
+            --hash-output reproducibility/V1_TASK_IMAGE_MANIFEST_SHA256.txt
+          test "$(python -c "import json; print(json.load(open('reproducibility/v1_task_images.json'))['task_environment_bundle_count'])")" = 12
+          test "$(python -c "import json; print(json.load(open('reproducibility/v1_task_images.json'))['built_service_image_count'])")" = 16
+          test "$(python -c "import json; print(json.load(open('reproducibility/v1_task_images.json'))['external_pinned_service_count'])")" = 1
+          echo IMMUTABLE_IMAGES_BUILT=12
+          echo PROVIDER_CALLS_DURING_V1_PREPARATION=0
+
+      - name: Commit canonical v1 task image manifest
+        run: |
+          set -euo pipefail
+          git config user.name 'chat4-benchmark-bot'
+          git config user.email 'chat4-benchmark-bot@users.noreply.github.com'
+          git pull --ff-only origin "$GITHUB_REF_NAME"
+          git add reproducibility/v1_task_images.json reproducibility/V1_TASK_IMAGE_MANIFEST_SHA256.txt
+          git commit -m '[CHAT4] freeze canonical v1 immutable task environment bundles'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Upload canonical environment manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-canonical-task-environment-manifest
+          path: |
+            reproducibility/v1_task_images.json
+            reproducibility/V1_TASK_IMAGE_MANIFEST_SHA256.txt
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Final provider-free assertion
+        run: |
+          set -euo pipefail
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          echo CANONICAL_V1_MATERIALIZATION=PASS
+          echo PROVIDER_CALLS_DURING_V1_PREPARATION=0
