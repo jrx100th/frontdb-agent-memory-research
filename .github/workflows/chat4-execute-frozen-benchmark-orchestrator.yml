@@ -1,0 +1,173 @@
+name: chat4-execute-frozen-benchmark-orchestrator
+
+on:
+  push:
+    branches:
+      - chat4/execute-frozen-benchmark-20260906
+    paths:
+      - .github/workflows/chat4-execute-frozen-benchmark-orchestrator.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chat4-frozen-benchmark-v0-orchestrator-launch
+  cancel-in-progress: false
+
+jobs:
+  task01:
+    uses: ./.github/workflows/chat4-run-one-frozen-task.yml
+    with:
+      task_id: atrx-vep-crispr
+      task_order: "1"
+      condition_order: ABCD
+      display_ordinal: "01"
+    secrets: inherit
+
+  task02:
+    needs: task01
+    uses: ./.github/workflows/chat4-run-one-frozen-task.yml
+    with:
+      task_id: batched-eval-parity
+      task_order: "2"
+      condition_order: BCDA
+      display_ordinal: "02"
+    secrets: inherit
+
+  task03:
+    needs: task02
+    uses: ./.github/workflows/chat4-run-one-frozen-task.yml
+    with:
+      task_id: cad-model
+      task_order: "3"
+      condition_order: CDAB
+      display_ordinal: "03"
+    secrets: inherit
+
+  task04:
+    needs: task03
+    uses: ./.github/workflows/chat4-run-one-frozen-task.yml
+    with:
+      task_id: cargo-flight-dispatch
+      task_order: "4"
+      condition_order: DABC
+      display_ordinal: "04"
+    secrets: inherit
+
+  task05:
+    needs: task04
+    uses: ./.github/workflows/chat4-run-one-frozen-task.yml
+    with:
+      task_id: coq-block-bound
+      task_order: "5"
+      condition_order: ABCD
+      display_ordinal: "05"
+    secrets: inherit
+
+  task06:
+    needs: task05
+    uses: ./.github/workflows/chat4-run-one-frozen-task.yml
+    with:
+      task_id: cumulative-layout-shift
+      task_order: "6"
+      condition_order: BCDA
+      display_ordinal: "06"
+    secrets: inherit
+
+  task07:
+    needs: task06
+    uses: ./.github/workflows/chat4-run-one-frozen-task.yml
+    with:
+      task_id: data-anonymization
+      task_order: "7"
+      condition_order: CDAB
+      display_ordinal: "07"
+    secrets: inherit
+
+  task08:
+    needs: task07
+    uses: ./.github/workflows/chat4-run-one-frozen-task.yml
+    with:
+      task_id: live-database-cutover
+      task_order: "8"
+      condition_order: DABC
+      display_ordinal: "08"
+    secrets: inherit
+
+  task09:
+    needs: task08
+    uses: ./.github/workflows/chat4-run-one-frozen-task.yml
+    with:
+      task_id: music-harmony
+      task_order: "9"
+      condition_order: ABCD
+      display_ordinal: "09"
+    secrets: inherit
+
+  task10:
+    needs: task09
+    uses: ./.github/workflows/chat4-run-one-frozen-task.yml
+    with:
+      task_id: uefi-bootkit
+      task_order: "10"
+      condition_order: BCDA
+      display_ordinal: "10"
+    secrets: inherit
+
+  task11:
+    needs: task10
+    uses: ./.github/workflows/chat4-run-one-frozen-task.yml
+    with:
+      task_id: production-planning
+      task_order: "11"
+      condition_order: CDAB
+      display_ordinal: "11"
+    secrets: inherit
+
+  task12:
+    needs: task11
+    uses: ./.github/workflows/chat4-run-one-frozen-task.yml
+    with:
+      task_id: wdm-design
+      task_order: "12"
+      condition_order: DABC
+      display_ordinal: "12"
+    secrets: inherit
+
+  aggregate:
+    needs:
+      - task01
+      - task02
+      - task03
+      - task04
+      - task05
+      - task06
+      - task07
+      - task08
+      - task09
+      - task10
+      - task11
+      - task12
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout execution harness
+        uses: actions/checkout@v4
+      - name: Download all raw task artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: chat4-raw-task-*
+          path: collected
+          merge-multiple: false
+      - name: Assemble raw bundle and aggregate metrics
+        run: |
+          set -euo pipefail
+          python benchmark_execution/aggregate.py --input-root collected --output-dir final-results
+      - name: Upload final raw bundle and aggregate
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-final-frozen-benchmark-results
+          path: final-results
+          if-no-files-found: error
+          retention-days: 90
