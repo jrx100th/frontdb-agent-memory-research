@@ -1,0 +1,135 @@
+name: chat4-benchmark-harness-validation
+
+on:
+  push:
+    branches:
+      - chat4/execute-frozen-benchmark-20260906
+    paths:
+      - .github/workflows/chat4-benchmark-harness-validation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      TOKENROUTER_BASE_URL: ${{ secrets.TOKENROUTER_BASE_URL }}
+      TOKENROUTER_API_KEY: ${{ secrets.TOKENROUTER_API_KEY }}
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - name: Checkout execution branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify branch parent and frozen main state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$(git merge-base HEAD 9bca6707e18cb679f045fffeaf25305b842b56d9)" = "9bca6707e18cb679f045fffeaf25305b842b56d9"
+          test "$(git show origin/main:manifests/experiment_manifest.final.json | sha256sum | awk '{print $1}')" = "88a98a4e191729b0d9a00afb40ade9c2985b3e4fa160034df58a4b01e83ebb4a"
+          test "$(git show origin/main:reproducibility/TASK_ENVIRONMENT_IDENTITIES.json | sha256sum | awk '{print $1}')" = "26566fea65da18291160d2f45598942182d4edf23e1b95485734bc196a67945e"
+          test "$(sha256sum manifests/experiment_manifest.final.json | awk '{print $1}')" = "88a98a4e191729b0d9a00afb40ade9c2985b3e4fa160034df58a4b01e83ebb4a"
+          test "$(sha256sum reproducibility/TASK_ENVIRONMENT_IDENTITIES.json | awk '{print $1}')" = "26566fea65da18291160d2f45598942182d4edf23e1b95485734bc196a67945e"
+          python - <<'PY'
+          import hashlib,os
+          v=os.environ.get('TOKENROUTER_BASE_URL')
+          k=os.environ.get('TOKENROUTER_API_KEY')
+          assert v and hashlib.sha256(v.encode('utf-8')).hexdigest()=='f76d53a0e94e3837023542b48c5b2226b21c3ad37cae446272a2743b7579ee5d'
+          assert k
+          print('PROVIDER_BASE_PREFLIGHT=PASS')
+          print('SECRET_EXPOSED=NO')
+          PY
+
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+
+      - name: Prepare exact frozen scientific source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p frozen-build
+          git clone --quiet https://github.com/SWE-agent/mini-swe-agent.git frozen-build/mini
+          git -C frozen-build/mini checkout --quiet a83fcae82d2a08f0ee0c688f9d137b3566c097f8
+          test "$(git -C frozen-build/mini rev-parse HEAD)" = "a83fcae82d2a08f0ee0c688f9d137b3566c097f8"
+          test "$(git -C frozen-build/mini rev-parse HEAD:src/minisweagent/config/mini.yaml)" = "8b72f71f8092ae805ec43221dbeaeefc2340cd3e"
+          test "$(git -C frozen-build/mini rev-parse HEAD:src/minisweagent/agents/default.py)" = "ca310e37d7c61888c576f73f5e1790ac769407b1"
+          test "$(git -C frozen-build/mini rev-parse HEAD:src/minisweagent/models/litellm_model.py)" = "84b5d548df0e10cbe820862399379bbde69a6fa8"
+          test "$(git -C frozen-build/mini rev-parse HEAD:src/minisweagent/models/utils/retry.py)" = "055d4b6fd4f57c1420dfa7622a8fe24148354548"
+          test "$(git -C frozen-build/mini rev-parse HEAD:src/minisweagent/models/utils/actions_toolcall.py)" = "8209113c4a1663d34468be6106b5661ec9e0be62"
+          git worktree add --detach frozen-build/runner ff6a1303acb865c0e0689a18eb7fceb7af4e0cdc
+          python frozen-build/runner/implementation/authoritative/apply_integration.py --upstream frozen-build/mini
+          python frozen-build/runner/implementation/authoritative/apply_condition_runner.py --upstream frozen-build/mini
+          cp frozen-build/runner/implementation/authoritative/provider-constraints.txt frozen-build/provider-constraints.txt
+          test "$(grep -E '^litellm==' frozen-build/provider-constraints.txt)" = "litellm==1.99.0"
+          python -m compileall -q frozen-build/mini/src benchmark_execution
+          tar -C frozen-build -czf frozen-mini.tar.gz mini
+          sha256sum frozen-mini.tar.gz > frozen-mini.tar.gz.sha256
+          echo "FROZEN_SOURCE_ARCHIVE_READY=YES"
+
+      - name: Install Harbor v0.18.0 on host
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet 'harbor==0.18.0'
+          harbor --version
+          python - <<'PY'
+          from benchmark_execution.frozen_harbor_agent import FrozenMiniSweAgent
+          assert FrozenMiniSweAgent.name() == 'mini-swe-agent'
+          print('CUSTOM_AGENT_IMPORT=PASS')
+          PY
+
+      - name: Verify all 12 frozen environment identities without provider calls
+        shell: bash
+        run: |
+          set -euo pipefail
+          tasks=(atrx-vep-crispr batched-eval-parity cad-model cargo-flight-dispatch coq-block-bound cumulative-layout-shift data-anonymization live-database-cutover music-harmony uefi-bootkit production-planning wdm-design)
+          for i in "${!tasks[@]}"; do
+            task="${tasks[$i]}"
+            python benchmark_execution/preflight.py \
+              --repo-root . --tb-root terminal-bench --task "$task" --condition A \
+              --task-order "$((i+1))" --condition-position 1 --run-id "validation-$task" \
+              --output "validation-preflight/$task.json"
+          done
+          test "$(find validation-preflight -name '*.json' | wc -l)" -eq 12
+          echo "ALL_TASK_ENVIRONMENT_PREFLIGHTS=PASS"
+          echo "BENCHMARK_PROVIDER_CALLS=0"
+          echo "BENCHMARK_RESULTS_OBSERVED=0"
+
+      - name: Harbor install-only smoke test on first frozen task
+        shell: bash
+        env:
+          FROZEN_MINI_ARCHIVE: ${{ github.workspace }}/frozen-mini.tar.gz
+          FROZEN_RUNNER_SCRIPT: ${{ github.workspace }}/benchmark_execution/frozen_runner.py
+          FROZEN_PROVIDER_CONSTRAINTS: ${{ github.workspace }}/frozen-build/provider-constraints.txt
+        run: |
+          set -euo pipefail
+          rm -rf validation-jobs
+          harbor run \
+            --path terminal-bench/tasks/atrx-vep-crispr \
+            --agent benchmark_execution.frozen_harbor_agent:FrozenMiniSweAgent \
+            --model z-ai/glm-5.3-free \
+            --jobs-dir validation-jobs \
+            --n-attempts 1 --n-concurrent 1 --max-retries 0 \
+            --no-force-build --delete --yes --install-only
+          echo "INSTALL_ONLY=PASS"
+          echo "BENCHMARK_AGENT_RUNS=0"
+          echo "BENCHMARK_PROVIDER_CALLS=0"
+
+      - name: Upload provider-free validation packet
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-benchmark-harness-validation
+          path: |
+            validation-preflight
+            frozen-mini.tar.gz.sha256
+          if-no-files-found: error
