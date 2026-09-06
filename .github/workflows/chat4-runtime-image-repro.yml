@@ -1,0 +1,32 @@
+name: chat4-runtime-image-repro
+
+on:
+  push:
+    branches:
+      - chat4/execute-frozen-benchmark-20260906
+    paths:
+      - benchmark_execution/test_runtime_image_identity.py
+      - benchmark_execution/frozen_harbor_agent.py
+      - .github/workflows/chat4-runtime-image-repro.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provider-free-repro:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout execution branch
+        uses: actions/checkout@v4
+      - name: Install Harbor v0.18.0 only
+        run: python -m pip install --quiet 'harbor==0.18.0'
+      - name: Run provider-free runtime image identity regression
+        env:
+          TOKENROUTER_BASE_URL: ""
+          TOKENROUTER_API_KEY: ""
+        run: |
+          set -euo pipefail
+          python -m unittest -v benchmark_execution.test_runtime_image_identity
+          echo PROVIDER_CALLS=0
