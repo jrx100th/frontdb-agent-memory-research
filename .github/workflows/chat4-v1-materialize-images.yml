@@ -1,0 +1,194 @@
+name: chat4-v1-materialize-images
+
+on:
+  push:
+    branches:
+      - chat4/v1-environment-materialization-20260907
+    paths:
+      - .github/workflows/chat4-v1-materialize-images.yml
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  TOKENROUTER_BASE_URL: ""
+  TOKENROUTER_API_KEY: ""
+  PYTHONPATH: ${{ github.workspace }}
+
+concurrency:
+  group: chat4-v1-immutable-image-materialization
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    name: materialize-${{ matrix.order }}-${{ matrix.task }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        include:
+          - { order: 1, task: atrx-vep-crispr }
+          - { order: 2, task: batched-eval-parity }
+          - { order: 3, task: cad-model }
+          - { order: 4, task: cargo-flight-dispatch }
+          - { order: 5, task: coq-block-bound }
+          - { order: 6, task: cumulative-layout-shift }
+          - { order: 7, task: data-anonymization }
+          - { order: 8, task: live-database-cutover }
+          - { order: 9, task: music-harmony }
+          - { order: 10, task: uefi-bootkit }
+          - { order: 11, task: production-planning }
+          - { order: 12, task: wdm-design }
+    steps:
+      - name: Checkout v1 preparation branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+
+      - name: Assert provider-free boundary
+        run: |
+          set -euo pipefail
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          test "$(git -C terminal-bench rev-parse HEAD)" = "2b0442c3c583b710ca8da14c8e601b99f2f1f244"
+          echo PROVIDER_CALLS=0
+
+      - name: Verify frozen task and environment source identity
+        run: |
+          set -euo pipefail
+          python benchmark_execution/v1_verify_task_source.py \
+            --repo-root . \
+            --tb-root terminal-bench \
+            --task '${{ matrix.task }}' \
+            --output source-proof.json
+
+      - name: Install exact Harbor host harness
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet 'harbor==0.18.0'
+          python - <<'PY'
+          import importlib.metadata as md
+          assert md.version('harbor') == '0.18.0'
+          print('HARBOR_VERSION=0.18.0')
+          PY
+
+      - name: Authenticate controlled GHCR transport
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Build once and publish exact immutable task image
+        env:
+          MATRIX_TASK: ${{ matrix.task }}
+          MATRIX_ORDER: ${{ matrix.order }}
+        run: |
+          set -euo pipefail
+          ORDER2="$(printf '%02d' "$MATRIX_ORDER")"
+          OWNER_LOWER="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          export V1_TASK_ID="$MATRIX_TASK"
+          export V1_TASK_ORDER="$MATRIX_ORDER"
+          export V1_TASK_SOURCE_IDENTITY="$(python -c "import json; print(json.load(open('source-proof.json'))['task_environment_identity_sha256'])")"
+          export V1_IMAGE_REPOSITORY="ghcr.io/${OWNER_LOWER}/frontdb-agent-memory-v1-task${ORDER2}-${MATRIX_TASK}"
+          export V1_IMAGE_TRANSPORT_TAG="materialize-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          export V1_MATERIALIZATION_OUTPUT="$GITHUB_WORKSPACE/materialization.json"
+          rm -rf v1-materialize-job materialization.json
+          harbor run \
+            --path "terminal-bench/tasks/${MATRIX_TASK}" \
+            --agent benchmark_execution.v1_image_materializer:V1ImageMaterializer \
+            --model z-ai/glm-5.3-free \
+            --jobs-dir v1-materialize-job \
+            --job-name "v1-materialize-${ORDER2}-${MATRIX_TASK}" \
+            --n-attempts 1 --n-concurrent 1 --max-retries 0 \
+            --no-force-build --delete --yes --install-only
+          test -s materialization.json
+          python - <<'PY'
+          import json, os, re
+          r=json.load(open('materialization.json'))
+          assert r['task_id'] == os.environ['MATRIX_TASK']
+          assert r['provider_calls'] == 0
+          assert r['platform'] == 'linux/amd64'
+          assert re.fullmatch(r'sha256:[0-9a-f]{64}', r['registry_manifest_digest'])
+          assert r['immutable_image_reference'].endswith('@' + r['registry_manifest_digest'])
+          assert r['runtime_image_id_at_materialization'] == r['roundtrip_runtime_image_id']
+          print('V1_MATERIALIZATION_RECORD=PASS')
+          print('PROVIDER_CALLS=0')
+          PY
+
+      - name: Upload immutable image record
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-image-${{ matrix.order }}-${{ matrix.task }}
+          path: |
+            materialization.json
+            source-proof.json
+          if-no-files-found: error
+          retention-days: 90
+
+  compile-manifest:
+    name: compile-canonical-v1-image-manifest
+    needs: materialize
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout v1 preparation branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all immutable image records
+        uses: actions/download-artifact@v4
+        with:
+          pattern: v1-image-*
+          path: v1-image-records
+          merge-multiple: false
+
+      - name: Compile canonical task image manifest
+        run: |
+          set -euo pipefail
+          python benchmark_execution/v1_collect_materialization.py \
+            --input-root v1-image-records \
+            --environment-packet reproducibility/TASK_ENVIRONMENT_IDENTITIES.json \
+            --output reproducibility/v1_task_images.json \
+            --hash-output reproducibility/V1_TASK_IMAGE_MANIFEST_SHA256.txt
+          test "$(python -c "import json; print(json.load(open('reproducibility/v1_task_images.json'))['image_count'])")" = "12"
+          test "$(python -c "import json; print(json.load(open('reproducibility/v1_task_images.json'))['provider_calls_during_materialization'])")" = "0"
+
+      - name: Commit canonical immutable image manifest
+        run: |
+          set -euo pipefail
+          git config user.name 'chat4-benchmark-bot'
+          git config user.email 'chat4-benchmark-bot@users.noreply.github.com'
+          git add reproducibility/v1_task_images.json reproducibility/V1_TASK_IMAGE_MANIFEST_SHA256.txt
+          git commit -m '[CHAT4] freeze canonical v1 task image digests'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Preserve canonical image manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-canonical-task-image-manifest
+          path: |
+            reproducibility/v1_task_images.json
+            reproducibility/V1_TASK_IMAGE_MANIFEST_SHA256.txt
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Final materialization boundary assertion
+        run: |
+          set -euo pipefail
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          echo IMMUTABLE_IMAGES_BUILT=12
+          echo PROVIDER_CALLS_DURING_V1_PREPARATION=0
