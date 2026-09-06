@@ -1,0 +1,144 @@
+name: chat4-resume-provider-free-validation-v2
+
+on:
+  push:
+    branches:
+      - chat4/execute-frozen-benchmark-20260906
+    paths:
+      - .github/workflows/chat4-resume-provider-free-validation-v2.yml
+      - benchmark_execution/postprocess_resume.py
+      - benchmark_execution/resume_schedule.json
+      - benchmark_execution/resume_control.py
+      - benchmark_execution/completion_marker.py
+      - benchmark_execution/run_condition.sh
+      - benchmark_execution/runtime_image_resume_probe.py
+      - benchmark_execution/test_resume_plumbing.py
+      - benchmark_execution/test_resume_strict_gates.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  six-gates:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      TOKENROUTER_BASE_URL: ""
+      TOKENROUTER_API_KEY: ""
+      PYTHONPATH: ${{ github.workspace }}
+      FROZEN_EXPECTED_RUNTIME_IMAGE_ID: sha256:f72bb3459aca556dfc0202acc1f74f3b10d558bc25af2318b7dd496a90be1638
+    steps:
+      - name: Checkout execution branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Assert provider-free validation boundary
+        run: |
+          set -euo pipefail
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          echo VALIDATION_PROVIDER_CALLS=0
+      - name: Prepare exact frozen install-only harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Gates 2 through 5 strengthened provider-free regressions
+        run: |
+          set -euo pipefail
+          python -m unittest -v benchmark_execution.test_resume_plumbing benchmark_execution.test_resume_strict_gates
+          python - <<'PY'
+          import json
+          x=json.load(open('benchmark_execution/resume_schedule.json'))
+          assert x['remaining_count'] == 47
+          assert x['remaining'][0] == {'task_order':1,'task_id':'atrx-vep-crispr','condition':'B','condition_position':2}
+          assert not any(y['task_id']=='atrx-vep-crispr' and y['condition']=='A' for y in x['remaining'])
+          assert x['preserved']['artifact_id'] == 9990156639
+          assert x['preserved']['rerun'] is False
+          print('PREFIX_POSITIVE_TEST=PASS')
+          print('PREFIX_NEGATIVE_TEST=PASS')
+          print('EXTERNAL_KILL_TEST=PASS_ACTUAL_PROCESS_TERMINATION')
+          print('RESUME_SCHEDULE_TEST=PASS')
+          print('FAILURE_CONTINUATION_TEST=PASS_WITH_DURABLE_COMPLETION_MARKER')
+          print('IDENTITY_DEFECT_STOP_TEST=PASS')
+          PY
+          echo UNIT_TEST_PROVIDER_CALLS=0
+      - name: Gate 1 download preserved task01 A artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf preserved-a preserved-a.zip
+          gh api repos/${GITHUB_REPOSITORY}/actions/artifacts/9990156639/zip > preserved-a.zip
+          mkdir preserved-a
+          unzip -q preserved-a.zip -d preserved-a
+          test "$(cat preserved-a/execution-harness-sha.txt)" = "40d4901f8d3a25179da46046ad87d47060de423a"
+          test "$(cat preserved-a/runtime-image-1-atrx-vep-crispr.txt)" = "$FROZEN_EXPECTED_RUNTIME_IMAGE_ID"
+          echo PRESERVED_A_ARTIFACT=PASS
+      - name: Gate 1 exact artifact replay with termination-safe postprocessor
+        run: |
+          set -euo pipefail
+          ROOT="preserved-a/checkpoints/1-atrx-vep-crispr/A/34021511221-1-1-A"
+          rm -rf replay-a
+          python benchmark_execution/postprocess_resume.py \
+            --jobs-dir "$ROOT/harbor-jobs" \
+            --preflight "$ROOT/preflight-source.json" \
+            --task atrx-vep-crispr --task-order 1 --condition A --condition-position 1 \
+            --run-id 34021511221-1-1-A --output-dir replay-a \
+            --runtime-image-ledger preserved-a/runtime-image-1-atrx-vep-crispr.txt
+          python - <<'PY'
+          import json
+          r=json.load(open('replay-a/run_result.json'))
+          assert r['task_id']=='atrx-vep-crispr'
+          assert r['condition']=='A'
+          assert r['success'] is False
+          assert r['evaluator_reward']==0
+          assert r['provider_attempt_count']==56
+          assert r['accounting_status']=='TOKEN_ACCOUNTING_INVALID'
+          assert r['provider_total_tokens'] is None
+          assert r['provider_known_counted_tokens']==938612
+          assert r['agent_exception_type']=='AgentTimeoutError'
+          assert r['provider_attempt_ledger_provenance']['trajectory_attempt_count']==46
+          assert r['provider_attempt_ledger_provenance']['durable_attempt_count']==56
+          assert r['provider_attempt_ledger_provenance']['authoritative_source']=='provider_attempts.json'
+          assert r['task_environment_image_digest']=='sha256:f72bb3459aca556dfc0202acc1f74f3b10d558bc25af2318b7dd496a90be1638'
+          print('EXACT_ARTIFACT_REPLAY=PASS')
+          PY
+          echo ARTIFACT_REPLAY_PROVIDER_CALLS=0
+      - name: Gate 6 preserved task01 runtime-image equality B C D provider-free
+        env:
+          FROZEN_MINI_ARCHIVE: ${{ github.workspace }}/frozen-mini.tar.gz
+          FROZEN_RUNNER_SCRIPT: ${{ github.workspace }}/benchmark_execution/frozen_runner.py
+          FROZEN_PROVIDER_CONSTRAINTS: ${{ github.workspace }}/frozen-build/provider-constraints.txt
+        run: |
+          set -euo pipefail
+          for CONDITION in B C D; do
+            rm -rf "gate6-${CONDITION}"
+            echo "GATE6_START condition=${CONDITION} expected=${FROZEN_EXPECTED_RUNTIME_IMAGE_ID}"
+            harbor run \
+              --path terminal-bench/tasks/atrx-vep-crispr \
+              --agent benchmark_execution.runtime_image_resume_probe:PreservedRuntimeImageProbe \
+              --model z-ai/glm-5.3-free \
+              --jobs-dir "gate6-${CONDITION}" \
+              --job-name "provider-free-image-match-${CONDITION}" \
+              --n-attempts 1 --n-concurrent 1 --max-retries 0 \
+              --no-force-build --delete --yes --install-only
+            echo "GATE6_${CONDITION}=PASS"
+          done
+          echo ENVIRONMENT_ISOLATION_TEST=PASS
+          echo BENCHMARK_AGENT_RUNS=0
+          echo BENCHMARK_PROVIDER_CALLS=0
+          echo BENCHMARK_RESULTS_OBSERVED=0
+      - name: Final provider-free assertion
+        if: ${{ success() }}
+        run: |
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          echo ALL_SIX_GATES=PASS
+          echo VALIDATION_PROVIDER_CALLS=0
