@@ -1,0 +1,71 @@
+name: chat4-resume-runtime-image-gate-strict
+
+on:
+  push:
+    branches:
+      - chat4/execute-frozen-benchmark-20260906
+    paths:
+      - .github/workflows/chat4-resume-runtime-image-gate-strict.yml
+      - benchmark_execution/runtime_image_resume_probe.py
+      - benchmark_execution/check_runtime_image_probe.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate6:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      TOKENROUTER_BASE_URL: ""
+      TOKENROUTER_API_KEY: ""
+      PYTHONPATH: ${{ github.workspace }}
+      FROZEN_EXPECTED_RUNTIME_IMAGE_ID: sha256:f72bb3459aca556dfc0202acc1f74f3b10d558bc25af2318b7dd496a90be1638
+    steps:
+      - name: Checkout execution branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Assert provider-free boundary
+        run: |
+          set -euo pipefail
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          echo GATE6_PROVIDER_CALLS=0
+      - name: Prepare exact frozen install-only harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Exact preserved task01 image equality for B C D
+        env:
+          FROZEN_MINI_ARCHIVE: ${{ github.workspace }}/frozen-mini.tar.gz
+          FROZEN_RUNNER_SCRIPT: ${{ github.workspace }}/benchmark_execution/frozen_runner.py
+          FROZEN_PROVIDER_CONSTRAINTS: ${{ github.workspace }}/frozen-build/provider-constraints.txt
+        run: |
+          set -euo pipefail
+          for CONDITION in B C D; do
+            rm -rf "gate6-${CONDITION}"
+            harbor run \
+              --path terminal-bench/tasks/atrx-vep-crispr \
+              --agent benchmark_execution.runtime_image_resume_probe:PreservedRuntimeImageProbe \
+              --model z-ai/glm-5.3-free \
+              --jobs-dir "gate6-${CONDITION}" \
+              --job-name "strict-provider-free-image-match-${CONDITION}" \
+              --n-attempts 1 --n-concurrent 1 --max-retries 0 \
+              --no-force-build --delete --yes --install-only
+            python benchmark_execution/check_runtime_image_probe.py \
+              --jobs-dir "gate6-${CONDITION}" \
+              --expected "$FROZEN_EXPECTED_RUNTIME_IMAGE_ID" \
+              --task atrx-vep-crispr
+            echo "STRICT_GATE6_${CONDITION}=PASS"
+          done
+          echo ENVIRONMENT_ISOLATION_TEST=PASS
+          echo BENCHMARK_AGENT_RUNS=0
+          echo BENCHMARK_PROVIDER_CALLS=0
+          echo BENCHMARK_RESULTS_OBSERVED=0
