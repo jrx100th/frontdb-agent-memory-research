@@ -45,8 +45,12 @@ def instantiate(root: Path, condition: str, run_label: str) -> dict:
         memory_workspace=work,
         benchmark_condition=condition,
     )
-    files = sorted(str(p.relative_to(work)) for p in work.glob("memory*.sqlite*"))
     runtime = getattr(agent, "_memory_runtime", None)
+    # Match DefaultAgent.run()'s exact pre-provider memory lifecycle boundary.
+    # A/B have no runtime; C/D initialize their condition-scoped task DB here.
+    if runtime is not None:
+        runtime.start_task("provider-free-memory-gate", task_id="v1-memory-isolation-gate")
+    files = sorted(str(p.relative_to(work)) for p in work.glob("memory*.sqlite*"))
     runtime_path = str(runtime.db_path) if runtime is not None else None
     if model.query_calls != 0:
         raise RuntimeError("PROVIDER_CALL_OCCURRED_IN_MEMORY_ISOLATION_GATE")
