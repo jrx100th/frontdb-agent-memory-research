@@ -1,0 +1,220 @@
+name: chat4-v1-acceptance-g3-g10
+
+on:
+  push:
+    branches:
+      - chat4/v1-environment-materialization-20260907
+    paths:
+      - .github/workflows/chat4-v1-acceptance-g3-g10.yml
+
+permissions:
+  contents: write
+  actions: read
+  packages: read
+
+env:
+  TOKENROUTER_BASE_URL: ""
+  TOKENROUTER_API_KEY: ""
+  OPENAI_API_KEY: ""
+  PYTHONPATH: ${{ github.workspace }}
+  CANONICAL_ENV_COMMIT: 72d187d9aa3ac87ae7b0190e070f97e390a75820
+  CANONICAL_IMAGE_MANIFEST_SHA256: 2b2e05f1e6434e67767d6fe42b51e353a56ad5f275a320fe81f79a9fa9ca6d96
+  TB_SHA: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - name: Checkout canonical v1 acceptance descendant
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+
+      - name: Assert canonical immutable inputs and zero-provider boundary
+        run: |
+          set -euo pipefail
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          test -z "$OPENAI_API_KEY"
+          git merge-base --is-ancestor "$CANONICAL_ENV_COMMIT" HEAD
+          test "$(git -C terminal-bench rev-parse HEAD)" = "$TB_SHA"
+          test "$(sha256sum reproducibility/v1_task_images.json | awk '{print $1}')" = "$CANONICAL_IMAGE_MANIFEST_SHA256"
+          test "$(cat reproducibility/V1_TASK_IMAGE_MANIFEST_SHA256.txt)" = "$CANONICAL_IMAGE_MANIFEST_SHA256"
+          test "$(git rev-parse "$CANONICAL_ENV_COMMIT":reproducibility/v1_task_images.json)" = "$(git rev-parse HEAD:reproducibility/v1_task_images.json)"
+          test "$(git rev-parse "$CANONICAL_ENV_COMMIT":reproducibility/V1_TASK_IMAGE_MANIFEST_SHA256.txt)" = "$(git rev-parse HEAD:reproducibility/V1_TASK_IMAGE_MANIFEST_SHA256.txt)"
+          echo G1=PASS
+          echo G2=PASS
+          echo PROVIDER_CALLS=0
+
+      - name: Install provider-free gate dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pyyaml
+          python -m compileall -q benchmark_execution
+
+      - name: Authenticate read-only immutable GHCR pulls
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Reconstruct exact frozen patched DefaultAgent source
+        uses: ./.github/actions/chat4-prepare-benchmark
+
+      - name: G3 G6 G7 G8 provider-free acceptance
+        run: |
+          set -euo pipefail
+          rm -rf v1-acceptance
+          mkdir -p v1-acceptance
+          python benchmark_execution/v1_acceptance_core.py \
+            --image-manifest reproducibility/v1_task_images.json \
+            --env-packet reproducibility/TASK_ENVIRONMENT_IDENTITIES.json \
+            --tb-root terminal-bench \
+            --output v1-acceptance/core-gates.json
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          test -z "$OPENAI_API_KEY"
+          echo G3=PASS
+          echo G6=PASS
+          echo G7=PASS
+          echo G8=PASS
+          echo PROVIDER_CALLS=0
+
+      - name: G4 G5 actual patched DefaultAgent and MemoryRuntime startup
+        env:
+          PYTHONPATH: ${{ github.workspace }}/frozen-build/mini/src:${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python benchmark_execution/v1_memory_isolation_gate.py --output v1-acceptance/memory-gates.json
+          python - <<'PY'
+          import json
+          x=json.load(open('v1-acceptance/memory-gates.json'))
+          assert x['a_b_no_memory'] is True
+          assert x['c_d_fresh_unique_condition_scoped'] is True
+          assert x['zero_cross_condition_state'] is True
+          assert x['provider_calls'] == 0
+          print('G4=PASS')
+          print('G5=PASS')
+          PY
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          test -z "$OPENAI_API_KEY"
+          echo PROVIDER_CALLS=0
+
+      - name: G9 download preserved v0 artifact 9990156639
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf preserved-v0 preserved-v0.zip
+          gh api repos/${GITHUB_REPOSITORY}/actions/artifacts/9990156639/zip > preserved-v0.zip
+          mkdir preserved-v0
+          unzip -q preserved-v0.zip -d preserved-v0
+          test -s preserved-v0/runtime-image-1-atrx-vep-crispr.txt
+          echo V0_ARTIFACT_9990156639=DOWNLOADED
+          echo PROVIDER_CALLS=0
+
+      - name: G9 final v1-side termination-safe v0 provenance replay
+        run: |
+          set -euo pipefail
+          rm -rf v1-acceptance/v0-replay
+          python benchmark_execution/v1_v0_replay_gate.py \
+            --artifact-root preserved-v0 \
+            --output-dir v1-acceptance/v0-replay
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          test -z "$OPENAI_API_KEY"
+          echo G9=PASS
+          echo PROVIDER_CALLS=0
+
+      - name: G10 freeze final v1 manifest only after G3-G9 PASS
+        run: |
+          set -euo pipefail
+          test -s v1-acceptance/core-gates.json
+          test -s v1-acceptance/memory-gates.json
+          test -s v1-acceptance/v0-replay/run_result.json
+          rm -f manifests/experiment_manifest.v1.final.json reproducibility/V1_MANIFEST_SHA256.txt
+          python benchmark_execution/v1_freeze_manifest.py \
+            --v0-manifest manifests/experiment_manifest.final.json \
+            --image-manifest reproducibility/v1_task_images.json \
+            --image-manifest-hash reproducibility/V1_TASK_IMAGE_MANIFEST_SHA256.txt \
+            --gates-evidence v1-acceptance/core-gates.json \
+            --memory-evidence v1-acceptance/memory-gates.json \
+            --v0-replay-evidence v1-acceptance/v0-replay/run_result.json \
+            --freeze-parent "$GITHUB_SHA" \
+            --output manifests/experiment_manifest.v1.final.json \
+            --hash-output reproducibility/V1_MANIFEST_SHA256.txt
+          python - <<'PY'
+          import hashlib, json
+          p='manifests/experiment_manifest.v1.final.json'
+          raw=open(p,'rb').read()
+          digest=hashlib.sha256(raw).hexdigest()
+          rec=open('reproducibility/V1_MANIFEST_SHA256.txt').read().strip()
+          m=json.loads(raw)
+          assert digest == rec
+          assert m['experiment_version'] == 'v1-environment-materialized-1'
+          em=m['execution']['environment_materialization']
+          assert em['task_environment_bundle_manifest_sha256'] == '2b2e05f1e6434e67767d6fe42b51e353a56ad5f275a320fe81f79a9fa9ca6d96'
+          assert em['per_condition_rebuild'] is False
+          assert m['execution']['ci_job_granularity'] == 'ONE_TASK_CONDITION_PER_GITHUB_ACTIONS_JOB'
+          assert m['v1_pre_provider_acceptance']['provider_calls'] == 0
+          assert m['v1_pre_provider_acceptance']['status'] == 'PASS'
+          print('G10=PASS')
+          print('V1_MANIFEST_SHA256=' + digest)
+          PY
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          test -z "$OPENAI_API_KEY"
+          echo PROVIDER_CALLS=0
+
+      - name: Permanently preserve G3-G10 evidence and frozen v1 manifest
+        run: |
+          set -euo pipefail
+          mkdir -p reproducibility/v1_acceptance
+          cp v1-acceptance/core-gates.json reproducibility/v1_acceptance/G3_G6_G7_G8.json
+          cp v1-acceptance/memory-gates.json reproducibility/v1_acceptance/G4_G5.json
+          cp v1-acceptance/v0-replay/run_result.json reproducibility/v1_acceptance/G9_V0_REPLAY.json
+          sha256sum reproducibility/v1_acceptance/G3_G6_G7_G8.json \
+                    reproducibility/v1_acceptance/G4_G5.json \
+                    reproducibility/v1_acceptance/G9_V0_REPLAY.json \
+            > reproducibility/v1_acceptance/SHA256SUMS.txt
+          git config user.name chat4-benchmark-bot
+          git config user.email chat4-benchmark-bot@users.noreply.github.com
+          git add manifests/experiment_manifest.v1.final.json \
+                  reproducibility/V1_MANIFEST_SHA256.txt \
+                  reproducibility/v1_acceptance/
+          git commit -m '[CHAT4] freeze final provider-free accepted v1 experiment manifest'
+          git push origin HEAD:${GITHUB_REF_NAME}
+          echo V1_FREEZE_COMMIT=$(git rev-parse HEAD)
+
+      - name: Upload acceptance evidence artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-v1-g3-g10-acceptance
+          path: |
+            v1-acceptance/
+            manifests/experiment_manifest.v1.final.json
+            reproducibility/V1_MANIFEST_SHA256.txt
+            reproducibility/V1_TASK_IMAGE_MANIFEST_SHA256.txt
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Final zero-provider and stop-before-execution assertion
+        run: |
+          set -euo pipefail
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          test -z "$OPENAI_API_KEY"
+          echo PROVIDER_CALLS_DURING_ACCEPTANCE=0
+          echo READY_FOR_V1_EXECUTION=YES
+          echo PROVIDER_BACKED_V1_LAUNCHED=NO
