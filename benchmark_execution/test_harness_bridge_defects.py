@@ -5,10 +5,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
+from minisweagent.agents import get_agent
 from minisweagent.agents.interactive import InteractiveAgentConfig
 from minisweagent.config import get_config_from_spec
 
-from benchmark_execution import frozen_runner, postprocess
+from benchmark_execution import postprocess
 
 
 FIXTURE = Path(__file__).with_name("fixtures") / "harbor_v0_18_terminal_bench_atrx.json"
@@ -16,19 +17,27 @@ TASK = "atrx-vep-crispr"
 
 
 class ConfirmationPolicyRegressionTest(unittest.TestCase):
-    def test_frozen_upstream_raw_config_omits_confirm_exit_but_effective_default_is_true(self):
+    def test_provider_free_reproduces_legacy_false_confirm_preflight(self):
         config = get_config_from_spec("mini")
         self.assertEqual(config["agent"].get("mode"), "confirm")
         self.assertNotIn("confirm_exit", config["agent"])
+        legacy_raw_check_accepts = (
+            config["agent"].get("mode") == "confirm"
+            and config["agent"].get("confirm_exit") is True
+        )
+        self.assertIs(legacy_raw_check_accepts, False)
+
+    def test_frozen_effective_default_is_confirm_exit_true(self):
+        config = get_config_from_spec("mini")
         effective = InteractiveAgentConfig(**config["agent"])
         self.assertEqual(effective.mode, "confirm")
         self.assertIs(effective.confirm_exit, True)
 
-    def test_harness_validates_effective_frozen_confirmation_policy(self):
+    def test_same_get_agent_semantics_resolve_effective_confirmation_policy(self):
         config = get_config_from_spec("mini")
-        mode, confirm_exit = frozen_runner._validate_effective_confirmation_policy(config["agent"])
-        self.assertEqual(mode, "confirm")
-        self.assertIs(confirm_exit, True)
+        agent = get_agent(object(), object(), config["agent"], default_type="interactive")
+        self.assertEqual(agent.config.mode, "confirm")
+        self.assertIs(agent.config.confirm_exit, True)
 
 
 class HarborTaskNameRegressionTest(unittest.TestCase):
