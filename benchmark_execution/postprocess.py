@@ -40,6 +40,11 @@ def duration_seconds(start, finish):
     return max(0.0, (b - a).total_seconds())
 
 
+def _harbor_task_name_matches(task_name: object, task: str) -> bool:
+    """Accept only the frozen Harbor namespace or the bare task id."""
+    return task_name == task or task_name == f"terminal-bench/{task}"
+
+
 def find_trial_result(jobs_dir: Path, task: str) -> tuple[Path, dict]:
     matches = []
     for path in jobs_dir.rglob("result.json"):
@@ -47,7 +52,7 @@ def find_trial_result(jobs_dir: Path, task: str) -> tuple[Path, dict]:
             obj = json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             continue
-        if obj.get("task_name") == task and obj.get("trial_name"):
+        if _harbor_task_name_matches(obj.get("task_name"), task) and obj.get("trial_name"):
             matches.append((path, obj))
     if len(matches) != 1:
         raise RuntimeError(f"EXPECTED_ONE_TRIAL_RESULT_FOUND_{len(matches)}")
