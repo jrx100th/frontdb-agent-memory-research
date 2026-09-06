@@ -4,168 +4,168 @@
 Agent Memory Efficiency Experiment
 
 ## STATUS
-V0 architecture remains frozen.
+**BENCHMARK EXECUTION AUTHORIZED — FROZEN 48-RUN EXPERIMENT**
 
-The authoritative mini-SWE-agent v2.4.6 scientific baseline remains:
+The v0 architecture remains frozen. Engineering, provider-accounting, adversarial-review, and benchmark/reproducibility gates are cleared. Chat4 independently cleared the A/B/C/D condition harness, froze the benchmark packet, and completed the two final pre-execution identity requirements before any benchmark agent run or benchmark provider call occurred.
 
-`81b7e326f91e5efdee43cf11349294c088e2731e`
+The Orchestrator authorizes execution via:
 
-The real GLM-5.3 / TokenRouter-compatible provider-accounting gate is **PASS**.
+`messages/chat4_benchmark/MSG-000033-orchestrator-to-chat4-execute-frozen-benchmark.md`
 
-Chat3 independently reviewed the authoritative integration and returned:
+No benchmark result has yet established the structured-memory hypothesis.
 
-**PROCEED_TO_BENCHMARK_REPRO_GATE**
+## FINAL FROZEN EXPERIMENT MANIFEST
+Path:
 
-Chat4 previously returned:
+`manifests/experiment_manifest.final.json`
 
-**BLOCKED_REPRO_IMPLEMENTATION_FIX_REQUIRED**
+Current authoritative SHA-256:
 
-because executable B (Last-4-only, zero memory side effects) and D (pure lexical FTS/BM25 baseline sharing C storage/safety/budget) were missing.
+`88a98a4e191729b0d9a00afb40ade9c2985b3e4fa160034df58a4b01e83ebb4a`
 
-Chat2 has now completed the authorized minimal condition-runner fix at:
+This supersedes pre-execution manifest hash:
 
-`ff6a1303acb865c0e0689a18eb7fceb7af4e0cdc`
+`fb5ace0c0f211cd37aad473845d7c2e818d0a5e518651919a0a5a67437c3449e`
 
-Authoritative CI for that condition-runner object:
+Reason:
 
-- run `33988970398`
-- job `101367636620`
-- conclusion: `success`
-- deterministic condition-purity suite: `10 passed / 0 failed`
+`PRE_EXECUTION_REPRODUCIBILITY_IDENTITY_COMPLETION`
+
+`final_frozen=true`.
+
+## HARNESS / IMPLEMENTATION
+- mini-SWE-agent: `v2.4.6`
+- upstream commit: `a83fcae82d2a08f0ee0c688f9d137b3566c097f8`
+- tested scientific baseline: `81b7e326f91e5efdee43cf11349294c088e2731e`
+- tested condition-runner: `ff6a1303acb865c0e0689a18eb7fceb7af4e0cdc`
+- frozen C structured-memory algorithm/constants changed by condition-runner fix: **NO**
 - Strong T10: **PASS**
-- upstream: `606 passed / 0 failed / 13 skipped`
 
-Baseline -> condition-runner changed exactly:
+## CONDITIONS
+- **A — FULL NATIVE HISTORY:** pristine/native full history; zero memory runtime/DB/fingerprint/retrieval/synthetic-memory side effects.
+- **B — LAST-4:** system + original task + last 4 complete native steps verbatim; zero memory side effects.
+- **C — STRUCTURED MEMORY:** frozen structured-memory path + Last-4.
+- **D — LEXICAL ONLY:** same storage/chunks/safety/freshness/budget/framing/serialization as C; pure FTS5/BM25-derived lexical ranking only.
 
-1. `.github/workflows/chat2-authoritative-integration.yml`
-2. `implementation/authoritative/apply_condition_runner.py`
-3. `tests/integration/test_condition_runner.py`
-
-Frozen C repository sources/constants were not changed.
-
-This Chat2 result is **IMPLEMENTATION-TESTED BUT NOT YET INDEPENDENTLY CLEARED BY CHAT4**.
-
-Terminal-Bench execution remains **NOT RUN / NOT AUTHORIZED**.
-
-## HARNESS
-mini-SWE-agent v2.4.6
-
-## UPSTREAM COMMIT
-`a83fcae82d2a08f0ee0c688f9d137b3566c097f8`
-
-## TESTED SCIENTIFIC BASELINE SHA
-`81b7e326f91e5efdee43cf11349294c088e2731e`
-
-## TESTED CONDITION-RUNNER SHA
-`ff6a1303acb865c0e0689a18eb7fceb7af4e0cdc`
-
-Implementation branch:
-
-`chat2/authoritative-integration-20260905`
-
-The condition-runner SHA is the object Chat4 must independently review. It is not merged into coordination `main`.
+A/B/C/D differ only by the frozen history/memory treatment.
 
 ## MODEL / PROVIDER
 - model: GLM-5.3
 - route: `z-ai/glm-5.3-free`
-- provider transport: TokenRouter-compatible OpenAI format
-- LiteLLM compatibility hint: `custom_llm_provider="openai"`
-- LiteLLM version: `1.99.0`
-- stream: `false`
+- provider transport: TokenRouter-compatible OpenAI chat-completions
+- LiteLLM: `1.99.0`
+- `custom_llm_provider="openai"`
+- `stream=false`
 
-## PRIMARY METRIC
-provider-reported total tokens / successfully solved tasks
+Expected exact runtime provider-base SHA-256:
+
+`f76d53a0e94e3837023542b48c5b2226b21c3ad37cae446272a2743b7579ee5d`
+
+Before every provider invocation, hash the exact runtime `TOKENROUTER_BASE_URL` UTF-8 value without trimming/normalization. Mismatch => `CONFIGURATION_INVALID` and `ABORT_BEFORE_PROVIDER_CALL`.
+
+API keys remain external secrets and must never be committed, printed, or hashed into public evidence.
 
 ## AUTHORITATIVE PROVIDER ACCOUNTING
-Final authoritative provider observation from the cleared baseline:
-
+Cleared provider observation:
 - input/prompt tokens: `186`
 - output/completion tokens: `50`
 - total tokens: `236`
 - cached tokens: `0`
 - reasoning tokens: `36`
-- arithmetic consistency: `186 + 50 = 236`
+- arithmetic: `186 + 50 = 236`
 - accounting status: `COUNTED`
-- provider calls: attempted `1`, countable `1`, extra `0`
-- local estimator substitution: none
+- no local-estimator substitution
 
-## CHAT3 INDEPENDENT REVIEW
-Published report:
+Primary scientific accounting uses provider-reported usage only. Retries/generated attempts count. Cached tokens are not subtracted. Reasoning tokens are not added again. Missing/malformed/unrecoverable usage => `UNKNOWN` / `TOKEN_ACCOUNTING_INVALID` under the frozen paired invalidation policy.
 
-`reports/review/AUTHORITATIVE_INTEGRATION_REVIEW_V0.md`
-
-Verdict: **PROCEED_TO_BENCHMARK_REPRO_GATE**.
-
-Independent reviewer CI:
-- run `33983684722`
-- job `101353282558`
-- reviewer head `ee42f1cf36a6747410e13c16ddf386af34f98c52`
-- Chat3 reviewer tests: `14 passed`
-- provider accounting + adapter tests: `13 passed`
-- Strong T10: **PASS**
-
-## CONDITION-RUNNER IMPLEMENTATION STATUS
-Chat2 publication handoff:
-
-`messages/orchestrator/MSG-000028-chat2-to-orchestrator-condition-runner-review-handoff.md`
-
-Chat2 requested Chat4 review in:
-
-`messages/chat4_benchmark/MSG-000029-chat2-to-chat4-condition-harness-repro-review-request.md`
-
-Implementation-tested semantics reported by Chat2:
-- A = native full history, zero memory side effects
-- B = system + original task + last 4 complete native steps verbatim; incomplete trailing step excluded; zero MemoryRuntime/DB/fingerprint/retrieval/synthetic-message work
-- C = existing frozen structured-memory behavior unchanged
-- D = same task-local storage/chunks/write policy/task isolation/freshness/staleness/fingerprint/budget/limits/framing/serialization as C, with pure lexical FTS/BM25 selection and no structured-ranking bonuses
-- C_VS_D_ONLY_INTENDED_DIFFERENCE = PASS
-- CONDITION_NEUTRAL_SETTINGS = PASS
-
-These are not final scientific claims until Chat4 independently reproduces/clears them.
-
-## CHAT4 REPRODUCIBILITY GATE
-Terminal-Bench identity already verified without executing tasks:
-
+## TERMINAL-BENCH
 - repository: `harbor-framework/terminal-bench`
 - tag: `v3.0.0`
 - immutable revision: `2b0442c3c583b710ca8da14c8e601b99f2f1f244`
+- frozen task count: `12`
+- planned task-condition runs: `48`
 
-The previous B/D blocker is now implementation-tested as repaired, but independent Chat4 verification is still required.
+Frozen task order:
+1. `atrx-vep-crispr`
+2. `batched-eval-parity`
+3. `cad-model`
+4. `cargo-flight-dispatch`
+5. `coq-block-bound`
+6. `cumulative-layout-shift`
+7. `data-anonymization`
+8. `live-database-cutover`
+9. `music-harmony`
+10. `uefi-bootkit`
+11. `production-planning`
+12. `wdm-design`
 
-If Chat4 clears condition purity, Chat4 must then freeze and publish before any task execution:
-- exact 10-15 task IDs and frozen order/schedule
-- A/B/C/D execution semantics and isolation/reset rules
-- provider/model/settings packet
-- retry/caching/accounting-invalid policy
-- measurement outputs
-- final experiment manifest, fully populated, hashed, frozen, and read back
+Frozen cyclic condition schedule:
+- task 1: `ABCD`
+- task 2: `BCDA`
+- task 3: `CDAB`
+- task 4: `DABC`
+- repeat this four-task cycle three times over the 12 frozen tasks.
 
-Final benchmark manifest: **NOT FROZEN**.
+No retrospective task replacement and no adaptive reordering.
 
-## ARTIFACT PROVENANCE RESERVATION
-- artifact id: `9970944939`
-- current API/downloaded-byte SHA-256: `339dc5ebf443df4f80d174b574d7a605c1b0a5e13cd767820cdd6af8792e0880`
-- historical upload-log digest: `31b931226ee1bbddb1cd4dc67e395a32821f75323faa79a39e03fa854a596426`
-- disposition: **UNRESOLVED_BUT_NONBLOCKING**
+## TASK ENVIRONMENT IDENTITY FREEZE
+Packet:
 
-## PERFORMANCE RESERVATION
-**HIGH PERFORMANCE RISK** remains active.
+`reproducibility/TASK_ENVIRONMENT_IDENTITIES.json`
 
-No retrieval optimization is authorized during the reproducibility gate.
+Packet SHA-256:
 
-## TERMINAL-BENCH
-Benchmark family: Terminal-Bench 3.0
+`26566fea65da18291160d2f45598942182d4edf23e1b95485734bc196a67945e`
 
-Pinned identity: `v3.0.0` at `2b0442c3c583b710ca8da14c8e601b99f2f1f244`.
+The packet binds, for all 12 tasks, pinned task metadata, complete environment Git-tree identity, container-definition identities, and resolved immutable external base-image digests. Before every provider call, verify the frozen environment identity. Any mismatch => `CONFIGURATION_INVALID` or `INFRASTRUCTURE_INVALID` and `ABORT_BEFORE_PROVIDER_CALL`.
 
-Execution: **NOT RUN**.
+Runtime-built task image digest remains mandatory and must match across A/B/C/D for that task before provider invocation.
 
-Execution remains forbidden until Chat4 independently clears the condition-runner, freezes the exact task subset/schedule/settings and final experiment manifest, publishes/read-backs that packet, and explicitly returns `READY_TO_EXECUTE_BENCHMARK`.
+## PRIMARY METRIC
+`tokens_per_success = total_provider_tokens_across_condition / successfully_solved_tasks`
+
+Thresholds remain frozen:
+- >=30% lower with equal/higher solve rate: strong
+- >=20% lower with no meaningful solve-rate loss: worthwhile
+- <10%, meaningful solve-rate loss, or Last-4 closely matching C: stop/simplify signal
+
+## PREVIOUS INDEPENDENT GATES
+Chat3 authoritative-integration verdict:
+
+**PROCEED_TO_BENCHMARK_REPRO_GATE**
+
+Chat4 final reproducibility verdict:
+
+**READY_TO_EXECUTE_BENCHMARK**
+
+Latest Chat4 pre-execution identity handoff:
+
+`messages/orchestrator/MSG-000032-chat4-to-orchestrator-prebenchmark-identity-freeze-complete.md`
+
+Latest Orchestrator benchmark authorization:
+
+`messages/chat4_benchmark/MSG-000033-orchestrator-to-chat4-execute-frozen-benchmark.md`
+
+## RESERVATIONS
+### Artifact provenance
+`ARTIFACT_DIGEST_LOG_METADATA_DISCREPANCY` remains **UNRESOLVED_BUT_NONBLOCKING**.
+
+### Performance
+**HIGH PERFORMANCE RISK** remains retained. Duplicate-heavy retrieval showed materially worse latency than ordinary profiles. Retrieval-induced runtime/timeout is a real condition outcome and must not be selectively excluded.
+
+## BENCHMARK EXECUTION RULE
+Execute exactly the frozen 48 scheduled task-condition runs under manifest SHA-256:
+
+`88a98a4e191729b0d9a00afb40ade9c2985b3e4fa160034df58a4b01e83ebb4a`
+
+Preserve raw trajectory, raw provider attempt usage, evaluator output, runtime logs, and C/D retrieval telemetry for every run. Do not alter tasks, schedule, prompts/tools, provider settings, condition semantics, memory constants, retry/accounting policy, invalidation policy, reset/isolation policy, or metrics after any benchmark result is observed.
+
+If a frozen preflight or accounting/infrastructure rule fails, fail closed and preserve the failure. Do not silently repair or rerun outside the frozen policy.
 
 ## NEXT ACTION
-**CHAT4 — INDEPENDENT CONDITION-HARNESS REPRODUCIBILITY REVIEW + MANIFEST FREEZE IF CLEAN**
+**CHAT4 — EXECUTE THE 48 FROZEN BENCHMARK RUNS AND PUBLISH RAW EVIDENCE + CONDITION-NEUTRAL AGGREGATION.**
 
-No Terminal-Bench task execution during this gate.
+The structured-memory hypothesis remains **UNTESTED** until the frozen runs are completed and analyzed.
 
-## Evidence boundary
-Engineering/provider/reviewer gates remain cleared. Chat2 has repaired the narrow B/D execution blocker under deterministic non-benchmark tests. The repair is not independently cleared yet. No claim that structured memory improves tokens per success has been tested.
+## PROVENANCE NOTE
+Chat4 accidentally created `noop.txt` in commit `46eaf6607f17b3ebd15c23061b0aa09103b98843` and immediately removed it in `a075290ca1c46496c53c4e05aa642c4b719d43b1`. The incident touched only `noop.txt`; no scientific file changed. The repository tree returned to the prior pre-incident tree before the real pre-execution identity-freeze publication.
