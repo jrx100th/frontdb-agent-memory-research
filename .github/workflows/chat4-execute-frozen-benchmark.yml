@@ -1,0 +1,455 @@
+name: chat4-execute-frozen-benchmark
+
+on:
+  push:
+    branches:
+      - chat4/execute-frozen-benchmark-20260906
+    paths:
+      - .github/workflows/chat4-execute-frozen-benchmark.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chat4-frozen-benchmark-v0-pre-integration-1
+  cancel-in-progress: false
+
+env:
+  TOKENROUTER_BASE_URL: ${{ secrets.TOKENROUTER_BASE_URL }}
+  TOKENROUTER_API_KEY: ${{ secrets.TOKENROUTER_API_KEY }}
+  PYTHONPATH: ${{ github.workspace }}
+
+jobs:
+  task01:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Prepare frozen benchmark job
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute task 01 atrx-vep-crispr in frozen order ABCD
+        run: ./benchmark_execution/run_task.sh atrx-vep-crispr 1 ABCD
+      - name: Preserve task 01 raw evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-raw-task-01-atrx-vep-crispr
+          path: |
+            checkpoints/1-atrx-vep-crispr
+            runtime-image-1-atrx-vep-crispr.txt
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+  task02:
+    needs: task01
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Prepare frozen benchmark job
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute task 02 batched-eval-parity in frozen order BCDA
+        run: ./benchmark_execution/run_task.sh batched-eval-parity 2 BCDA
+      - name: Preserve task 02 raw evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-raw-task-02-batched-eval-parity
+          path: |
+            checkpoints/2-batched-eval-parity
+            runtime-image-2-batched-eval-parity.txt
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+  task03:
+    needs: task02
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Prepare frozen benchmark job
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute task 03 cad-model in frozen order CDAB
+        run: ./benchmark_execution/run_task.sh cad-model 3 CDAB
+      - name: Preserve task 03 raw evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-raw-task-03-cad-model
+          path: |
+            checkpoints/3-cad-model
+            runtime-image-3-cad-model.txt
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+  task04:
+    needs: task03
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Prepare frozen benchmark job
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute task 04 cargo-flight-dispatch in frozen order DABC
+        run: ./benchmark_execution/run_task.sh cargo-flight-dispatch 4 DABC
+      - name: Preserve task 04 raw evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-raw-task-04-cargo-flight-dispatch
+          path: |
+            checkpoints/4-cargo-flight-dispatch
+            runtime-image-4-cargo-flight-dispatch.txt
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+  task05:
+    needs: task04
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Prepare frozen benchmark job
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute task 05 coq-block-bound in frozen order ABCD
+        run: ./benchmark_execution/run_task.sh coq-block-bound 5 ABCD
+      - name: Preserve task 05 raw evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-raw-task-05-coq-block-bound
+          path: |
+            checkpoints/5-coq-block-bound
+            runtime-image-5-coq-block-bound.txt
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+  task06:
+    needs: task05
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Prepare frozen benchmark job
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute task 06 cumulative-layout-shift in frozen order BCDA
+        run: ./benchmark_execution/run_task.sh cumulative-layout-shift 6 BCDA
+      - name: Preserve task 06 raw evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-raw-task-06-cumulative-layout-shift
+          path: |
+            checkpoints/6-cumulative-layout-shift
+            runtime-image-6-cumulative-layout-shift.txt
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+  task07:
+    needs: task06
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Prepare frozen benchmark job
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute task 07 data-anonymization in frozen order CDAB
+        run: ./benchmark_execution/run_task.sh data-anonymization 7 CDAB
+      - name: Preserve task 07 raw evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-raw-task-07-data-anonymization
+          path: |
+            checkpoints/7-data-anonymization
+            runtime-image-7-data-anonymization.txt
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+  task08:
+    needs: task07
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Prepare frozen benchmark job
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute task 08 live-database-cutover in frozen order DABC
+        run: ./benchmark_execution/run_task.sh live-database-cutover 8 DABC
+      - name: Preserve task 08 raw evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-raw-task-08-live-database-cutover
+          path: |
+            checkpoints/8-live-database-cutover
+            runtime-image-8-live-database-cutover.txt
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+  task09:
+    needs: task08
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Prepare frozen benchmark job
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute task 09 music-harmony in frozen order ABCD
+        run: ./benchmark_execution/run_task.sh music-harmony 9 ABCD
+      - name: Preserve task 09 raw evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-raw-task-09-music-harmony
+          path: |
+            checkpoints/9-music-harmony
+            runtime-image-9-music-harmony.txt
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+  task10:
+    needs: task09
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Prepare frozen benchmark job
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute task 10 uefi-bootkit in frozen order BCDA
+        run: ./benchmark_execution/run_task.sh uefi-bootkit 10 BCDA
+      - name: Preserve task 10 raw evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-raw-task-10-uefi-bootkit
+          path: |
+            checkpoints/10-uefi-bootkit
+            runtime-image-10-uefi-bootkit.txt
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+  task11:
+    needs: task10
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Prepare frozen benchmark job
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute task 11 production-planning in frozen order CDAB
+        run: ./benchmark_execution/run_task.sh production-planning 11 CDAB
+      - name: Preserve task 11 raw evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-raw-task-11-production-planning
+          path: |
+            checkpoints/11-production-planning
+            runtime-image-11-production-planning.txt
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+  task12:
+    needs: task11
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Prepare frozen benchmark job
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute task 12 wdm-design in frozen order DABC
+        run: ./benchmark_execution/run_task.sh wdm-design 12 DABC
+      - name: Preserve task 12 raw evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-raw-task-12-wdm-design
+          path: |
+            checkpoints/12-wdm-design
+            runtime-image-12-wdm-design.txt
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+  aggregate:
+    needs:
+      - task01
+      - task02
+      - task03
+      - task04
+      - task05
+      - task06
+      - task07
+      - task08
+      - task09
+      - task10
+      - task11
+      - task12
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download all preserved task evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: chat4-raw-task-*
+          path: collected
+          merge-multiple: true
+      - name: Build condition-neutral frozen aggregation
+        run: python benchmark_execution/aggregate.py --input collected --output aggregate-output
+      - name: Preserve aggregation packet
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat4-frozen-benchmark-aggregate
+          path: aggregate-output
+          if-no-files-found: warn
+          retention-days: 90
