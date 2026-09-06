@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 V0_SHA256 = "88a98a4e191729b0d9a00afb40ade9c2985b3e4fa160034df58a4b01e83ebb4a"
+IMAGE_MANIFEST_SHA256 = "2b2e05f1e6434e67767d6fe42b51e353a56ad5f275a320fe81f79a9fa9ca6d96"
 ENV_PACKET_SHA256 = "26566fea65da18291160d2f45598942182d4edf23e1b95485734bc196a67945e"
 SCIENTIFIC_BASELINE_SHA = "81b7e326f91e5efdee43cf11349294c088e2731e"
 CONDITION_RUNNER_SHA = "ff6a1303acb865c0e0689a18eb7fceb7af4e0cdc"
@@ -72,6 +73,28 @@ def assert_science_equal(v0: dict, v1: dict) -> None:
         raise RuntimeError("V1_TERMINAL_BENCH_CHANGED")
 
 
+def _require_replay(replay: dict) -> None:
+    attempts = replay.get("provider_attempts_raw_and_normalized") or []
+    counted = sum(1 for x in attempts if x.get("accounting_status") == "COUNTED")
+    unknown = sum(1 for x in attempts if x.get("accounting_status") == "UNKNOWN")
+    if not (
+        replay.get("task_id") == "atrx-vep-crispr"
+        and replay.get("condition") == "A"
+        and replay.get("success") is False
+        and replay.get("evaluator_reward") == 0
+        and replay.get("provider_attempt_count") == 56
+        and len(attempts) == 56
+        and counted == 42
+        and unknown == 14
+        and replay.get("accounting_status") == "TOKEN_ACCOUNTING_INVALID"
+        and replay.get("provider_total_tokens") is None
+        and replay.get("provider_known_counted_tokens") == 938612
+        and replay.get("agent_exception_type") == "AgentTimeoutError"
+        and replay.get("provider_calls_during_replay") == 0
+    ):
+        raise RuntimeError("V1_V0_PROVENANCE_REPLAY_CHANGED")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--v0-manifest", type=Path, required=True)
@@ -90,7 +113,9 @@ def main() -> int:
     v0 = json.loads(args.v0_manifest.read_text(encoding="utf-8"))
     images = json.loads(args.image_manifest.read_text(encoding="utf-8"))
     image_sha = sha(args.image_manifest)
-    if args.image_manifest_hash.read_text(encoding="utf-8").strip() != image_sha:
+    if image_sha != IMAGE_MANIFEST_SHA256:
+        raise RuntimeError(f"V1_CANONICAL_IMAGE_MANIFEST_CHANGED:{image_sha}")
+    if args.image_manifest_hash.read_text(encoding="utf-8").strip() != IMAGE_MANIFEST_SHA256:
         raise RuntimeError("V1_IMAGE_MANIFEST_HASH_RECORD_MISMATCH")
     if images.get("task_environment_bundle_count") != 12:
         raise RuntimeError("V1_IMAGE_BUNDLE_COUNT_INVALID")
@@ -102,22 +127,20 @@ def main() -> int:
     replay = json.loads(args.v0_replay_evidence.read_text(encoding="utf-8"))
     if gates.get("provider_calls") != 0 or memory.get("provider_calls") != 0:
         raise RuntimeError("V1_PROVIDER_CALL_DURING_ACCEPTANCE")
-    if gates.get("g3_four_instance_digest_identity") != "PASS" or gates.get("g6_schedule") != "PASS":
-        raise RuntimeError("V1_CORE_ACCEPTANCE_INCOMPLETE")
-    if not memory.get("a_b_no_memory") or not memory.get("c_d_fresh_unique_condition_scoped"):
+    required_gate_values = {
+        "g3_four_instance_digest_identity": "PASS",
+        "g6_schedule": "PASS",
+        "g7_failure_continuation": "PASS",
+        "g8_identity_fail_closed": "PASS",
+    }
+    for key, expected in required_gate_values.items():
+        if gates.get(key) != expected:
+            raise RuntimeError(f"V1_CORE_ACCEPTANCE_INCOMPLETE:{key}:{gates.get(key)!r}")
+    if len(gates.get("g3_proof") or []) != 12 or len(gates.get("schedule") or []) != 48:
+        raise RuntimeError("V1_CORE_ACCEPTANCE_PROOF_CARDINALITY_INVALID")
+    if not memory.get("a_b_no_memory") or not memory.get("c_d_fresh_unique_condition_scoped") or not memory.get("zero_cross_condition_state"):
         raise RuntimeError("V1_MEMORY_ACCEPTANCE_INCOMPLETE")
-    if not (
-        replay.get("task_id") == "atrx-vep-crispr"
-        and replay.get("condition") == "A"
-        and replay.get("success") is False
-        and replay.get("evaluator_reward") == 0
-        and replay.get("provider_attempt_count") == 56
-        and replay.get("accounting_status") == "TOKEN_ACCOUNTING_INVALID"
-        and replay.get("provider_total_tokens") is None
-        and replay.get("provider_known_counted_tokens") == 938612
-        and replay.get("agent_exception_type") == "AgentTimeoutError"
-    ):
-        raise RuntimeError("V1_V0_PROVENANCE_REPLAY_CHANGED")
+    _require_replay(replay)
 
     v1 = copy.deepcopy(v0)
     v1["experiment_version"] = "v1-environment-materialized-1"
@@ -131,11 +154,12 @@ def main() -> int:
     v1["execution"]["ci_job_granularity"] = "ONE_TASK_CONDITION_PER_GITHUB_ACTIONS_JOB"
     v1["execution"]["environment_materialization"] = {
         "version": 1,
+        "packet_internal_experiment_version": images.get("experiment_version"),
         "mode": "IMMUTABLE_PREBUILT_PER_TASK_ENVIRONMENT_BUNDLE",
         "terminal_bench_source_revision": TB_SHA,
         "task_environment_source_identity_packet_sha256": ENV_PACKET_SHA256,
         "task_environment_bundle_manifest_path": "reproducibility/v1_task_images.json",
-        "task_environment_bundle_manifest_sha256": image_sha,
+        "task_environment_bundle_manifest_sha256": IMAGE_MANIFEST_SHA256,
         "task_environment_bundle_count": 12,
         "per_condition_rebuild": False,
         "runtime_image_reference_policy": "immutable repo@sha256 only; mutable transport tags forbidden for execution identity",
@@ -161,7 +185,7 @@ def main() -> int:
             "G4_A_B_no_memory_db": "PASS",
             "G5_C_D_fresh_unique_condition_db": "PASS",
             "G6_exact_48_run_latin_square": "PASS",
-            "G7_failure_timeout_continues": "PASS",
+            "G7_task_failure_and_timeout_continue": "PASS",
             "G8_identity_mismatch_fails_before_provider": "PASS",
             "G9_v0_artifact_replay_unchanged": "PASS",
             "G10_v1_manifest_frozen_before_provider": "PASS",
@@ -178,9 +202,12 @@ def main() -> int:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(payload)
     digest = hashlib.sha256(payload).hexdigest()
+    args.hash_output.parent.mkdir(parents=True, exist_ok=True)
     args.hash_output.write_text(digest + "\n", encoding="utf-8")
+    print("V1_VERSION=v1-environment-materialized-1")
     print("V1_SCIENTIFIC_DIFFERENCES_FROM_V0=NONE")
     print("V1_INFRASTRUCTURE_DIFFERENCE=IMMUTABLE_ENVIRONMENT_MATERIALIZATION_AND_ONE_CONDITION_PER_JOB")
+    print(f"V1_IMAGE_MANIFEST_SHA256={IMAGE_MANIFEST_SHA256}")
     print(f"V1_MANIFEST_SHA256={digest}")
     print("PROVIDER_CALLS_DURING_V1_PREPARATION=0")
     return 0
