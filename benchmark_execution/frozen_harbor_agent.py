@@ -17,6 +17,7 @@ EXPECTED_ENV_PACKET_SHA256 = "26566fea65da18291160d2f45598942182d4edf23e1b954857
 EXPECTED_MODEL_ROUTE = "z-ai/glm-5.3-free"
 EXPECTED_MINI_VERSION = "2.4.6"
 EXPECTED_LITELLM_VERSION = "1.99.0"
+EXPECTED_OPENAI_VERSION = "2.54.0"
 
 
 class FrozenMiniSweAgent(MiniSweAgent):
@@ -69,12 +70,13 @@ class FrozenMiniSweAgent(MiniSweAgent):
                 "tar -xzf /tmp/frozen-mini.tar.gz -C \"$HOME/frozen-mini-src\" --strip-components=1; "
                 "uv venv --python 3.11 \"$HOME/.frozen-mswe\"; "
                 "uv pip install --python \"$HOME/.frozen-mswe/bin/python\" "
-                "  --constraint /tmp/frozen-provider-constraints.txt \"$HOME/frozen-mini-src[full]\"; "
+                "  --constraint /tmp/frozen-provider-constraints.txt "
+                "  'openai==2.54.0' \"$HOME/frozen-mini-src[full]\"; "
                 "\"$HOME/.frozen-mswe/bin/python\" - <<'PY'\n"
                 "import importlib.metadata as md\n"
-                "import litellm\n"
                 "assert md.version('mini-swe-agent') == '2.4.6'\n"
                 "assert md.version('litellm') == '1.99.0'\n"
+                "assert md.version('openai') == '2.54.0'\n"
                 "print('FROZEN_AGENT_INSTALL_VERIFIED')\n"
                 "PY"
             ),
@@ -201,4 +203,5 @@ class FrozenMiniSweAgent(MiniSweAgent):
             "runtime_image_digest": runtime_image_id,
             "provider_preflight_calls": measurement.get("provider_preflight_calls"),
             "runner_return_code": result.return_code,
+            "openai_python_version": EXPECTED_OPENAI_VERSION,
         }
