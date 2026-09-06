@@ -25,6 +25,18 @@ class _FakeHarborEnvironment:
         raise AssertionError(f"unexpected compose command: {command}")
 
 
+class ProviderFreeRuntimeImageProbe(FrozenMiniSweAgent):
+    """Install-only Harbor probe. It cannot enter agent.run/provider execution."""
+
+    async def install(self, environment) -> None:
+        await super().install(environment)
+        immutable_image_id = await self._runtime_image_id(environment)
+        print(f"PROVIDER_FREE_RUNTIME_IMAGE_ID={immutable_image_id}")
+        print("BENCHMARK_AGENT_RUNS=0")
+        print("BENCHMARK_PROVIDER_CALLS=0")
+        print("BENCHMARK_RESULTS_OBSERVED=0")
+
+
 class RuntimeImageIdentityRegressionTest(unittest.TestCase):
     def test_resolves_immutable_image_id_from_running_main_container(self):
         env = _FakeHarborEnvironment()
