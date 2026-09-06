@@ -127,12 +127,17 @@ import json,sys
 print(json.load(open(sys.argv[1])).get('failure_class') or '')
 PY
 )"
-python - "$FAILURE_CLASS" <<'PY'
-import sys
+set +e
+python - "$EVIDENCE_DIR/run_result.json" <<'PY'
+import json,sys
 from benchmark_execution.resume_control import must_stop_after_condition
-raise SystemExit(1 if must_stop_after_condition(sys.argv[1]) else 0)
+r=json.load(open(sys.argv[1]))
+if r.get('evaluator_result') is None:
+    raise SystemExit(1)
+raise SystemExit(1 if must_stop_after_condition(r.get('failure_class')) else 0)
 PY
 CONTROL_RC=$?
+set -e
 if [[ $CONTROL_RC -ne 0 ]]; then
   echo "fatal frozen execution defect at $TASK_ID/$CONDITION class=$FAILURE_CLASS" >&2
   exit 86
