@@ -45,6 +45,20 @@ jobs:
           echo UNIT_RUNTIME_IMAGE_PROVIDER_CALLS=0
       - name: Prepare exact frozen install-only harness
         uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Install exact frozen mini-SWE dependencies for provider-free bridge tests
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet \
+            --constraint frozen-build/provider-constraints.txt \
+            'openai==2.54.0' './frozen-build/mini[full]'
+          python - <<'PY'
+          import importlib.metadata as md
+          assert md.version('mini-swe-agent') == '2.4.6'
+          assert md.version('litellm') == '1.99.0'
+          assert md.version('openai') == '2.54.0'
+          print('PROVIDER_FREE_FROZEN_DEPENDENCIES=PASS')
+          PY
+          echo DEPENDENCY_INSTALL_PROVIDER_CALLS=0
       - name: Reproduce and gate confirmation-default plus Harbor task-name defects provider-free
         env:
           PYTHONPATH: ${{ github.workspace }}/frozen-build/mini/src:${{ github.workspace }}
