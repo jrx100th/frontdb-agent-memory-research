@@ -144,9 +144,6 @@ def main() -> int:
     config["agent"]["memory_workspace"] = os.getcwd()
     config["agent"]["memory_task_id"] = task_id
     config["agent"]["output_path"] = str(TRAJECTORY)
-    # Preserve frozen mini.yaml mode=confirm and confirm_exit=true.
-    if config["agent"].get("mode") != "confirm" or config["agent"].get("confirm_exit") is not True:
-        raise RuntimeError("CONFIGURATION_INVALID_CONFIRM_MODE")
 
     model = get_model(config=config["model"])
     if hasattr(model, "set_accounting_context"):
@@ -191,6 +188,9 @@ def main() -> int:
 
     env = get_environment(config["environment"], default_type="local")
     agent = get_agent(model, env, config["agent"], default_type="interactive")
+    # Validate the effective Pydantic/default-resolved policy, not raw YAML key presence.
+    if getattr(agent.config, "mode", None) != "confirm" or getattr(agent.config, "confirm_exit", None) is not True:
+        raise RuntimeError("CONFIGURATION_INVALID_CONFIRM_MODE")
     started = time.perf_counter()
     error = None
     exit_code = 0
