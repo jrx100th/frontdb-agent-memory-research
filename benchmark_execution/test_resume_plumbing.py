@@ -102,11 +102,11 @@ class ResumeScheduleTests(unittest.TestCase):
 
 class FailureContinuationTests(unittest.TestCase):
     def test_scientific_failures_continue(self):
-        for value in ["TASK_FAILURE", "TOKEN_ACCOUNTING_INVALID", "AGENT_OR_HARNESS_EXCEPTION", "VERIFIER_RESULT_MISSING"]:
+        for value in ["TASK_FAILURE", "TOKEN_ACCOUNTING_INVALID", "AGENT_OR_HARNESS_EXCEPTION"]:
             self.assertFalse(must_stop_after_condition(value), value)
 
-    def test_identity_and_implementation_defects_stop(self):
-        for value in ["BENCHMARK_INVALID_IMPLEMENTATION_DEFECT", "INFRASTRUCTURE_INVALID_EXPERIMENT", "CONFIGURATION_INVALID", "UNRECOGNIZED"]:
+    def test_identity_implementation_and_missing_verifier_stop(self):
+        for value in ["BENCHMARK_INVALID_IMPLEMENTATION_DEFECT", "INFRASTRUCTURE_INVALID_EXPERIMENT", "CONFIGURATION_INVALID", "VERIFIER_RESULT_MISSING", "UNRECOGNIZED"]:
             self.assertTrue(must_stop_after_condition(value), value)
 
 
