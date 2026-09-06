@@ -7,6 +7,8 @@ on:
     paths:
       - benchmark_execution/test_runtime_image_identity.py
       - benchmark_execution/frozen_harbor_agent.py
+      - benchmark_execution/frozen_runner.py
+      - benchmark_execution/postprocess.py
       - .github/workflows/chat4-runtime-image-repro.yml
   workflow_dispatch:
 
@@ -41,6 +43,42 @@ jobs:
           echo UNIT_PROVIDER_CALLS=0
       - name: Prepare exact frozen install-only harness
         uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Validate effective confirmation defaults and Harbor task-name normalization
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/frozen-build/mini/src:$PYTHONPATH" python - <<'PY'
+          import json
+          import tempfile
+          from pathlib import Path
+          from minisweagent.agents.interactive import InteractiveAgentConfig
+          from minisweagent.config import get_config_from_spec
+          from benchmark_execution.postprocess import _harbor_task_name_matches, find_trial_result
+
+          cfg = get_config_from_spec('mini')
+          effective = InteractiveAgentConfig(**cfg['agent'])
+          assert effective.mode == 'confirm'
+          assert effective.confirm_exit is True
+
+          assert _harbor_task_name_matches('atrx-vep-crispr', 'atrx-vep-crispr')
+          assert _harbor_task_name_matches('terminal-bench/atrx-vep-crispr', 'atrx-vep-crispr')
+          assert not _harbor_task_name_matches('some-other-task/atrx-vep-crispr', 'atrx-vep-crispr')
+          assert not _harbor_task_name_matches('wrong-task', 'atrx-vep-crispr')
+
+          with tempfile.TemporaryDirectory() as td:
+              root = Path(td)
+              p = root / 'trial' / 'result.json'
+              p.parent.mkdir(parents=True)
+              p.write_text(json.dumps({
+                  'task_name': 'terminal-bench/atrx-vep-crispr',
+                  'trial_name': 'trial-1'
+              }), encoding='utf-8')
+              found_path, obj = find_trial_result(root, 'atrx-vep-crispr')
+              assert found_path == p
+              assert obj['trial_name'] == 'trial-1'
+          print('EFFECTIVE_CONFIRM_POLICY=PASS')
+          print('HARBOR_TASK_NAME_NORMALIZATION=PASS')
+          print('PROVIDER_CALLS=0')
+          PY
       - name: Harbor install-only runtime identity integration probe
         env:
           FROZEN_MINI_ARCHIVE: ${{ github.workspace }}/frozen-mini.tar.gz
