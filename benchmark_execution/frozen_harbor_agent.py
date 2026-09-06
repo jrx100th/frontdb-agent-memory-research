@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 
 from harbor.agents.installed.mini_swe_agent import MiniSweAgent
+from harbor.constants import MAIN_SERVICE_NAME
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
@@ -82,26 +83,39 @@ class FrozenMiniSweAgent(MiniSweAgent):
             ),
         )
 
-    def _runtime_image_id(self, environment: BaseEnvironment) -> str:
-        image_name = None
-        env_vars = getattr(environment, "_env_vars", None)
-        if env_vars is not None:
-            image_name = getattr(env_vars, "main_image_name", None)
-        if not image_name:
-            environment_id = getattr(environment, "environment_id", None)
-            if not environment_id:
-                raise RuntimeError("RUNTIME_IMAGE_NAME_UNRESOLVED")
-            image_name = f"hb__{environment_id}"
+    async def _runtime_image_id(self, environment: BaseEnvironment) -> str:
+        """Resolve the immutable image ID from Harbor's running main container.
+
+        Harbor v0.18.0 may build the compose service without assigning the
+        content-addressed main_image_name as a Docker image tag. The running
+        container is authoritative: Docker records the immutable image content
+        ID in the container's .Image field even when no inspectable tag exists.
+        """
+        compose = getattr(environment, "_run_docker_compose_command", None)
+        if compose is None:
+            raise RuntimeError("RUNTIME_CONTAINER_RESOLVER_UNAVAILABLE")
+        try:
+            ps = await compose(["ps", "-q", MAIN_SERVICE_NAME], check=False)
+        except Exception as exc:
+            raise RuntimeError("RUNTIME_CONTAINER_ID_UNRESOLVED") from exc
+        container_ids = [line.strip() for line in (ps.stdout or "").splitlines() if line.strip()]
+        if getattr(ps, "return_code", 1) != 0 or len(container_ids) != 1:
+            raise RuntimeError("RUNTIME_CONTAINER_ID_UNRESOLVED")
+        container_id = container_ids[0]
         try:
             value = subprocess.check_output(
-                ["docker", "image", "inspect", str(image_name), "--format", "{{.Id}}"],
+                ["docker", "inspect", container_id, "--format", "{{.Image}}"],
                 text=True,
             ).strip()
         except Exception as exc:
             raise RuntimeError("RUNTIME_IMAGE_DIGEST_UNRESOLVED") from exc
-        if not value.startswith("sha256:"):
+        if len(value) != 71 or not value.startswith("sha256:"):
             raise RuntimeError("RUNTIME_IMAGE_DIGEST_MALFORMED")
-        return value
+        try:
+            int(value[7:], 16)
+        except ValueError as exc:
+            raise RuntimeError("RUNTIME_IMAGE_DIGEST_MALFORMED") from exc
+        return value.lower()
 
     def _host_preflight(self, runtime_image_id: str) -> dict[str, str]:
         task_id = os.environ.get("FROZEN_TASK_ID", "")
@@ -148,7 +162,7 @@ class FrozenMiniSweAgent(MiniSweAgent):
         }
 
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
-        runtime_image_id = self._runtime_image_id(environment)
+        runtime_image_id = await self._runtime_image_id(environment)
         meta = self._host_preflight(runtime_image_id)
 
         self.logs_dir.mkdir(parents=True, exist_ok=True)
