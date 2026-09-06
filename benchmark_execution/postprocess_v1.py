@@ -12,6 +12,19 @@ def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _promote_fatal_pre_provider_exception(result: dict) -> None:
+    info = result.get("harbor_exception_info")
+    if not isinstance(info, dict):
+        return
+    message = str(info.get("exception_message") or "")
+    if "BENCHMARK_INVALID_IMPLEMENTATION_DEFECT" in message:
+        result["failure_class"] = "BENCHMARK_INVALID_IMPLEMENTATION_DEFECT"
+    elif "CONFIGURATION_INVALID_" in message or "MANIFEST_IDENTITY_FAILURE" in message:
+        result["failure_class"] = "CONFIGURATION_INVALID"
+    elif "INFRASTRUCTURE_INVALID_" in message:
+        result["failure_class"] = "INFRASTRUCTURE_INVALID_EXPERIMENT"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs-dir", type=Path, required=True)
@@ -61,10 +74,12 @@ def main() -> int:
     preflight = json.loads(args.preflight.read_text(encoding="utf-8"))
     result["task_environment_bundle_sha256"] = preflight.get("task_environment_bundle_sha256")
     result["task_environment_service_identity"] = preflight.get("service_identity")
+    _promote_fatal_pre_provider_exception(result)
     (args.output_dir / "run_result.json").write_bytes(v0pp.canon(result))
     print(
         f"V1_RUN_EVIDENCE_NORMALIZED task={args.task} condition={args.condition} "
-        f"success={result['success']} accounting={result['accounting_status']} attempts={result['provider_attempt_count']}"
+        f"success={result['success']} accounting={result['accounting_status']} "
+        f"attempts={result['provider_attempt_count']} failure_class={result.get('failure_class')}"
     )
     return 0
 
