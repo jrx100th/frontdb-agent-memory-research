@@ -34,6 +34,14 @@ def _task_record(manifest: dict, task_id: str) -> dict:
 class V1FrozenMiniSweAgent(FrozenMiniSweAgent):
     """Execution-plumbing-only bridge for v1 immutable environment materialization."""
 
+    async def install(self, environment: BaseEnvironment) -> None:
+        # Preserve the frozen scientific runner uploaded by the v0 bridge exactly.
+        await super().install(environment)
+        shim = Path(os.environ["V1_RUNNER_SHIM_SCRIPT"])
+        if not shim.is_file():
+            raise RuntimeError("CONFIGURATION_INVALID_V1_RUNNER_SHIM_MISSING")
+        await environment.upload_file(shim, "/tmp/v1_runner_shim.py")
+
     def _host_preflight(self, runtime_image_id: str) -> dict[str, str]:
         task_id = os.environ.get("FROZEN_TASK_ID", "")
         condition = os.environ.get("FROZEN_CONDITION", "")
@@ -134,7 +142,7 @@ class V1FrozenMiniSweAgent(FrozenMiniSweAgent):
 
         result = await self.exec_as_agent(
             environment,
-            command='"$HOME/.frozen-mswe/bin/python" /tmp/frozen_runner.py /logs/agent/instruction.txt',
+            command='"$HOME/.frozen-mswe/bin/python" /tmp/v1_runner_shim.py /logs/agent/instruction.txt',
             env=env,
         )
 
