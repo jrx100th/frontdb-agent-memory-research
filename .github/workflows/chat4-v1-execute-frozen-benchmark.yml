@@ -1,0 +1,2190 @@
+name: chat4-v1-execute-frozen-benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      orchestrator_authorization:
+        description: 'Must equal AUTHORIZED_V1_PROVIDER_EXECUTION'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: chat4-v1-frozen-benchmark
+  cancel-in-progress: false
+
+env:
+  TOKENROUTER_BASE_URL: ${{ secrets.TOKENROUTER_BASE_URL }}
+  TOKENROUTER_API_KEY: ${{ secrets.TOKENROUTER_API_KEY }}
+  PYTHONPATH: ${{ github.workspace }}
+
+jobs:
+  r001_t01_a:
+    name: 001-task01-atrx-vep-crispr-A
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'atrx-vep-crispr' '1' 'A' '1'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-001-task01-atrx-vep-crispr-A
+          path: |
+            checkpoints-v1/1-atrx-vep-crispr/A
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r002_t01_b:
+    name: 002-task01-atrx-vep-crispr-B
+    needs: r001_t01_a
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'atrx-vep-crispr' '1' 'B' '2'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-002-task01-atrx-vep-crispr-B
+          path: |
+            checkpoints-v1/1-atrx-vep-crispr/B
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r003_t01_c:
+    name: 003-task01-atrx-vep-crispr-C
+    needs: r002_t01_b
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'atrx-vep-crispr' '1' 'C' '3'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-003-task01-atrx-vep-crispr-C
+          path: |
+            checkpoints-v1/1-atrx-vep-crispr/C
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r004_t01_d:
+    name: 004-task01-atrx-vep-crispr-D
+    needs: r003_t01_c
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'atrx-vep-crispr' '1' 'D' '4'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-004-task01-atrx-vep-crispr-D
+          path: |
+            checkpoints-v1/1-atrx-vep-crispr/D
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r005_t02_b:
+    name: 005-task02-batched-eval-parity-B
+    needs: r004_t01_d
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'batched-eval-parity' '2' 'B' '1'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-005-task02-batched-eval-parity-B
+          path: |
+            checkpoints-v1/2-batched-eval-parity/B
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r006_t02_c:
+    name: 006-task02-batched-eval-parity-C
+    needs: r005_t02_b
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'batched-eval-parity' '2' 'C' '2'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-006-task02-batched-eval-parity-C
+          path: |
+            checkpoints-v1/2-batched-eval-parity/C
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r007_t02_d:
+    name: 007-task02-batched-eval-parity-D
+    needs: r006_t02_c
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'batched-eval-parity' '2' 'D' '3'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-007-task02-batched-eval-parity-D
+          path: |
+            checkpoints-v1/2-batched-eval-parity/D
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r008_t02_a:
+    name: 008-task02-batched-eval-parity-A
+    needs: r007_t02_d
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'batched-eval-parity' '2' 'A' '4'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-008-task02-batched-eval-parity-A
+          path: |
+            checkpoints-v1/2-batched-eval-parity/A
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r009_t03_c:
+    name: 009-task03-cad-model-C
+    needs: r008_t02_a
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'cad-model' '3' 'C' '1'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-009-task03-cad-model-C
+          path: |
+            checkpoints-v1/3-cad-model/C
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r010_t03_d:
+    name: 010-task03-cad-model-D
+    needs: r009_t03_c
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'cad-model' '3' 'D' '2'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-010-task03-cad-model-D
+          path: |
+            checkpoints-v1/3-cad-model/D
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r011_t03_a:
+    name: 011-task03-cad-model-A
+    needs: r010_t03_d
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'cad-model' '3' 'A' '3'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-011-task03-cad-model-A
+          path: |
+            checkpoints-v1/3-cad-model/A
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r012_t03_b:
+    name: 012-task03-cad-model-B
+    needs: r011_t03_a
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'cad-model' '3' 'B' '4'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-012-task03-cad-model-B
+          path: |
+            checkpoints-v1/3-cad-model/B
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r013_t04_d:
+    name: 013-task04-cargo-flight-dispatch-D
+    needs: r012_t03_b
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'cargo-flight-dispatch' '4' 'D' '1'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-013-task04-cargo-flight-dispatch-D
+          path: |
+            checkpoints-v1/4-cargo-flight-dispatch/D
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r014_t04_a:
+    name: 014-task04-cargo-flight-dispatch-A
+    needs: r013_t04_d
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'cargo-flight-dispatch' '4' 'A' '2'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-014-task04-cargo-flight-dispatch-A
+          path: |
+            checkpoints-v1/4-cargo-flight-dispatch/A
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r015_t04_b:
+    name: 015-task04-cargo-flight-dispatch-B
+    needs: r014_t04_a
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'cargo-flight-dispatch' '4' 'B' '3'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-015-task04-cargo-flight-dispatch-B
+          path: |
+            checkpoints-v1/4-cargo-flight-dispatch/B
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r016_t04_c:
+    name: 016-task04-cargo-flight-dispatch-C
+    needs: r015_t04_b
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'cargo-flight-dispatch' '4' 'C' '4'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-016-task04-cargo-flight-dispatch-C
+          path: |
+            checkpoints-v1/4-cargo-flight-dispatch/C
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r017_t05_a:
+    name: 017-task05-coq-block-bound-A
+    needs: r016_t04_c
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'coq-block-bound' '5' 'A' '1'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-017-task05-coq-block-bound-A
+          path: |
+            checkpoints-v1/5-coq-block-bound/A
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r018_t05_b:
+    name: 018-task05-coq-block-bound-B
+    needs: r017_t05_a
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'coq-block-bound' '5' 'B' '2'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-018-task05-coq-block-bound-B
+          path: |
+            checkpoints-v1/5-coq-block-bound/B
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r019_t05_c:
+    name: 019-task05-coq-block-bound-C
+    needs: r018_t05_b
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'coq-block-bound' '5' 'C' '3'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-019-task05-coq-block-bound-C
+          path: |
+            checkpoints-v1/5-coq-block-bound/C
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r020_t05_d:
+    name: 020-task05-coq-block-bound-D
+    needs: r019_t05_c
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'coq-block-bound' '5' 'D' '4'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-020-task05-coq-block-bound-D
+          path: |
+            checkpoints-v1/5-coq-block-bound/D
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r021_t06_b:
+    name: 021-task06-cumulative-layout-shift-B
+    needs: r020_t05_d
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'cumulative-layout-shift' '6' 'B' '1'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-021-task06-cumulative-layout-shift-B
+          path: |
+            checkpoints-v1/6-cumulative-layout-shift/B
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r022_t06_c:
+    name: 022-task06-cumulative-layout-shift-C
+    needs: r021_t06_b
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'cumulative-layout-shift' '6' 'C' '2'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-022-task06-cumulative-layout-shift-C
+          path: |
+            checkpoints-v1/6-cumulative-layout-shift/C
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r023_t06_d:
+    name: 023-task06-cumulative-layout-shift-D
+    needs: r022_t06_c
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'cumulative-layout-shift' '6' 'D' '3'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-023-task06-cumulative-layout-shift-D
+          path: |
+            checkpoints-v1/6-cumulative-layout-shift/D
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r024_t06_a:
+    name: 024-task06-cumulative-layout-shift-A
+    needs: r023_t06_d
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'cumulative-layout-shift' '6' 'A' '4'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-024-task06-cumulative-layout-shift-A
+          path: |
+            checkpoints-v1/6-cumulative-layout-shift/A
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r025_t07_c:
+    name: 025-task07-data-anonymization-C
+    needs: r024_t06_a
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'data-anonymization' '7' 'C' '1'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-025-task07-data-anonymization-C
+          path: |
+            checkpoints-v1/7-data-anonymization/C
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r026_t07_d:
+    name: 026-task07-data-anonymization-D
+    needs: r025_t07_c
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'data-anonymization' '7' 'D' '2'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-026-task07-data-anonymization-D
+          path: |
+            checkpoints-v1/7-data-anonymization/D
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r027_t07_a:
+    name: 027-task07-data-anonymization-A
+    needs: r026_t07_d
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'data-anonymization' '7' 'A' '3'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-027-task07-data-anonymization-A
+          path: |
+            checkpoints-v1/7-data-anonymization/A
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r028_t07_b:
+    name: 028-task07-data-anonymization-B
+    needs: r027_t07_a
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'data-anonymization' '7' 'B' '4'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-028-task07-data-anonymization-B
+          path: |
+            checkpoints-v1/7-data-anonymization/B
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r029_t08_d:
+    name: 029-task08-live-database-cutover-D
+    needs: r028_t07_b
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'live-database-cutover' '8' 'D' '1'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-029-task08-live-database-cutover-D
+          path: |
+            checkpoints-v1/8-live-database-cutover/D
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r030_t08_a:
+    name: 030-task08-live-database-cutover-A
+    needs: r029_t08_d
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'live-database-cutover' '8' 'A' '2'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-030-task08-live-database-cutover-A
+          path: |
+            checkpoints-v1/8-live-database-cutover/A
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r031_t08_b:
+    name: 031-task08-live-database-cutover-B
+    needs: r030_t08_a
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'live-database-cutover' '8' 'B' '3'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-031-task08-live-database-cutover-B
+          path: |
+            checkpoints-v1/8-live-database-cutover/B
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r032_t08_c:
+    name: 032-task08-live-database-cutover-C
+    needs: r031_t08_b
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'live-database-cutover' '8' 'C' '4'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-032-task08-live-database-cutover-C
+          path: |
+            checkpoints-v1/8-live-database-cutover/C
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r033_t09_a:
+    name: 033-task09-music-harmony-A
+    needs: r032_t08_c
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'music-harmony' '9' 'A' '1'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-033-task09-music-harmony-A
+          path: |
+            checkpoints-v1/9-music-harmony/A
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r034_t09_b:
+    name: 034-task09-music-harmony-B
+    needs: r033_t09_a
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'music-harmony' '9' 'B' '2'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-034-task09-music-harmony-B
+          path: |
+            checkpoints-v1/9-music-harmony/B
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r035_t09_c:
+    name: 035-task09-music-harmony-C
+    needs: r034_t09_b
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'music-harmony' '9' 'C' '3'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-035-task09-music-harmony-C
+          path: |
+            checkpoints-v1/9-music-harmony/C
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r036_t09_d:
+    name: 036-task09-music-harmony-D
+    needs: r035_t09_c
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'music-harmony' '9' 'D' '4'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-036-task09-music-harmony-D
+          path: |
+            checkpoints-v1/9-music-harmony/D
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r037_t10_b:
+    name: 037-task10-uefi-bootkit-B
+    needs: r036_t09_d
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'uefi-bootkit' '10' 'B' '1'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-037-task10-uefi-bootkit-B
+          path: |
+            checkpoints-v1/10-uefi-bootkit/B
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r038_t10_c:
+    name: 038-task10-uefi-bootkit-C
+    needs: r037_t10_b
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'uefi-bootkit' '10' 'C' '2'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-038-task10-uefi-bootkit-C
+          path: |
+            checkpoints-v1/10-uefi-bootkit/C
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r039_t10_d:
+    name: 039-task10-uefi-bootkit-D
+    needs: r038_t10_c
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'uefi-bootkit' '10' 'D' '3'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-039-task10-uefi-bootkit-D
+          path: |
+            checkpoints-v1/10-uefi-bootkit/D
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r040_t10_a:
+    name: 040-task10-uefi-bootkit-A
+    needs: r039_t10_d
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'uefi-bootkit' '10' 'A' '4'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-040-task10-uefi-bootkit-A
+          path: |
+            checkpoints-v1/10-uefi-bootkit/A
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r041_t11_c:
+    name: 041-task11-production-planning-C
+    needs: r040_t10_a
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'production-planning' '11' 'C' '1'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-041-task11-production-planning-C
+          path: |
+            checkpoints-v1/11-production-planning/C
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r042_t11_d:
+    name: 042-task11-production-planning-D
+    needs: r041_t11_c
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'production-planning' '11' 'D' '2'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-042-task11-production-planning-D
+          path: |
+            checkpoints-v1/11-production-planning/D
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r043_t11_a:
+    name: 043-task11-production-planning-A
+    needs: r042_t11_d
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'production-planning' '11' 'A' '3'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-043-task11-production-planning-A
+          path: |
+            checkpoints-v1/11-production-planning/A
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r044_t11_b:
+    name: 044-task11-production-planning-B
+    needs: r043_t11_a
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'production-planning' '11' 'B' '4'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-044-task11-production-planning-B
+          path: |
+            checkpoints-v1/11-production-planning/B
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r045_t12_d:
+    name: 045-task12-wdm-design-D
+    needs: r044_t11_b
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'wdm-design' '12' 'D' '1'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-045-task12-wdm-design-D
+          path: |
+            checkpoints-v1/12-wdm-design/D
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r046_t12_a:
+    name: 046-task12-wdm-design-A
+    needs: r045_t12_d
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'wdm-design' '12' 'A' '2'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-046-task12-wdm-design-A
+          path: |
+            checkpoints-v1/12-wdm-design/A
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r047_t12_b:
+    name: 047-task12-wdm-design-B
+    needs: r046_t12_a
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'wdm-design' '12' 'B' '3'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-047-task12-wdm-design-B
+          path: |
+            checkpoints-v1/12-wdm-design/B
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+  r048_t12_c:
+    name: 048-task12-wdm-design-C
+    needs: r047_t12_b
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Verify explicit orchestrator authorization
+        run: |
+          set -euo pipefail
+          test '${{ inputs.orchestrator_authorization }}' = 'AUTHORIZED_V1_PROVIDER_EXECUTION'
+      - name: Checkout frozen v1 execution harness
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout exact Terminal-Bench
+        uses: actions/checkout@v4
+        with:
+          repository: harbor-framework/terminal-bench
+          ref: 2b0442c3c583b710ca8da14c8e601b99f2f1f244
+          fetch-depth: 0
+          path: terminal-bench
+      - name: Authenticate immutable image registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare exact frozen scientific harness
+        uses: ./.github/actions/chat4-prepare-benchmark
+      - name: Execute exactly one frozen v1 task-condition
+        run: |
+          set -euo pipefail
+          chmod +x benchmark_execution/run_v1_condition_checkpointed.sh
+          ./benchmark_execution/run_v1_condition_checkpointed.sh 'wdm-design' '12' 'C' '4'
+      - name: Preserve raw condition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-raw-048-task12-wdm-design-C
+          path: |
+            checkpoints-v1/12-wdm-design/C
+            frozen-mini.tar.gz.sha256
+            execution-harness-sha.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+  execution-complete:
+    needs: r048_t12_c
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - run: echo V1_ALL_48_CONDITIONS_CHECKPOINTED=YES
