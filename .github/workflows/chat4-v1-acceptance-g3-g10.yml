@@ -3,7 +3,7 @@ name: chat4-v1-acceptance-g3-g10
 on:
   push:
     branches:
-      - chat4/v1-environment-materialization-20260907
+      - chat4/v1-g3-runtime-validator-repair-20260907
     paths:
       - .github/workflows/chat4-v1-acceptance-g3-g10.yml
 
@@ -51,6 +51,12 @@ jobs:
           test "$(cat reproducibility/V1_TASK_IMAGE_MANIFEST_SHA256.txt)" = "$CANONICAL_IMAGE_MANIFEST_SHA256"
           test "$(git rev-parse "$CANONICAL_ENV_COMMIT":reproducibility/v1_task_images.json)" = "$(git rev-parse HEAD:reproducibility/v1_task_images.json)"
           test "$(git rev-parse "$CANONICAL_ENV_COMMIT":reproducibility/V1_TASK_IMAGE_MANIFEST_SHA256.txt)" = "$(git rev-parse HEAD:reproducibility/V1_TASK_IMAGE_MANIFEST_SHA256.txt)"
+          python - <<'PY'
+          import json
+          x=json.load(open('reproducibility/v1_task_images.json'))
+          assert x['experiment_version'] == 'v1-environment-materialized'
+          print('ENVIRONMENT_PACKET_INTERNAL_LABEL=v1-environment-materialized')
+          PY
           echo G1=PASS
           echo G2=PASS
           echo PROVIDER_CALLS=0
@@ -76,7 +82,7 @@ jobs:
           set -euo pipefail
           rm -rf v1-acceptance
           mkdir -p v1-acceptance
-          python benchmark_execution/v1_acceptance_core.py \
+          python benchmark_execution/v1_acceptance_core_v2.py \
             --image-manifest reproducibility/v1_task_images.json \
             --env-packet reproducibility/TASK_ENVIRONMENT_IDENTITIES.json \
             --tb-root terminal-bench \
@@ -164,11 +170,14 @@ jobs:
           assert digest == rec
           assert m['experiment_version'] == 'v1-environment-materialized-1'
           em=m['execution']['environment_materialization']
+          assert em['packet_internal_experiment_version'] == 'v1-environment-materialized'
           assert em['task_environment_bundle_manifest_sha256'] == '2b2e05f1e6434e67767d6fe42b51e353a56ad5f275a320fe81f79a9fa9ca6d96'
           assert em['per_condition_rebuild'] is False
           assert m['execution']['ci_job_granularity'] == 'ONE_TASK_CONDITION_PER_GITHUB_ACTIONS_JOB'
           assert m['v1_pre_provider_acceptance']['provider_calls'] == 0
           assert m['v1_pre_provider_acceptance']['status'] == 'PASS'
+          print('FINAL_EXPERIMENT_VERSION=v1-environment-materialized-1')
+          print('ENVIRONMENT_PACKET_INTERNAL_LABEL=v1-environment-materialized')
           print('G10=PASS')
           print('V1_MANIFEST_SHA256=' + digest)
           PY
