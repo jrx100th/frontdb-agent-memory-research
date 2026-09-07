@@ -1,0 +1,133 @@
+name: chat4-v1-preexecution-consistency-correction
+
+on:
+  push:
+    branches:
+      - chat4/v1-g3-runtime-validator-repair-20260907
+    paths:
+      - .github/workflows/chat4-v1-preexecution-consistency-correction.yml
+      - benchmark_execution/v1_preexecution_consistency_correction.py
+      - benchmark_execution/v1_runner_shim.py
+      - benchmark_execution/v1_harbor_agent.py
+      - benchmark_execution/run_v1_condition_checkpointed.sh
+
+permissions:
+  contents: write
+
+env:
+  TOKENROUTER_BASE_URL: ""
+  TOKENROUTER_API_KEY: ""
+  OPENAI_API_KEY: ""
+  PYTHONPATH: ${{ github.workspace }}
+  SUPERSEDED_V1_MANIFEST_SHA256: 0a7fc0f7852d2ac3e6f4a117317e86f494760a4bf424b992bd8d2c587423493a
+  CANONICAL_IMAGE_MANIFEST_SHA256: 2b2e05f1e6434e67767d6fe42b51e353a56ad5f275a320fe81f79a9fa9ca6d96
+
+jobs:
+  correction:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout accepted v1 descendant
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assert provider-free correction boundary and accepted provenance
+        run: |
+          set -euo pipefail
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          test -z "$OPENAI_API_KEY"
+          git merge-base --is-ancestor 2137004e365344a6e2572f07a5c6dc065eeaac73 HEAD
+          test "$(sha256sum manifests/experiment_manifest.v1.final.json | awk '{print $1}')" = "$SUPERSEDED_V1_MANIFEST_SHA256"
+          test "$(cat reproducibility/V1_MANIFEST_SHA256.txt)" = "$SUPERSEDED_V1_MANIFEST_SHA256"
+          test "$(sha256sum reproducibility/v1_task_images.json | awk '{print $1}')" = "$CANONICAL_IMAGE_MANIFEST_SHA256"
+          echo PROVIDER_CALLS=0
+          echo G3_G9_RERUN=NO
+          echo IMAGE_REBUILD=NO
+
+      - name: Compile correction and v1 binding code
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            benchmark_execution/v1_preexecution_consistency_correction.py \
+            benchmark_execution/v1_runner_shim.py \
+            benchmark_execution/v1_harbor_agent.py \
+            benchmark_execution/v1_preflight.py \
+            benchmark_execution/postprocess_v1.py \
+            benchmark_execution/v1_identity.py \
+            benchmark_execution/v1_generate_execution_workflow.py
+
+      - name: Apply exactly two manifest metadata corrections and audit v1 bindings
+        run: |
+          set -euo pipefail
+          python benchmark_execution/v1_preexecution_consistency_correction.py | tee /tmp/v1-consistency-correction.log
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          test -z "$OPENAI_API_KEY"
+          echo PROVIDER_CALLS=0
+
+      - name: Final provider-free consistency gate
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+
+          old='0a7fc0f7852d2ac3e6f4a117317e86f494760a4bf424b992bd8d2c587423493a'
+          image='2b2e05f1e6434e67767d6fe42b51e353a56ad5f275a320fe81f79a9fa9ca6d96'
+          manifest=Path('manifests/experiment_manifest.v1.final.json')
+          record=Path('reproducibility/V1_MANIFEST_SHA256.txt').read_text().strip()
+          actual=hashlib.sha256(manifest.read_bytes()).hexdigest()
+          m=json.loads(manifest.read_text())
+          audit=json.loads(Path('reproducibility/v1_preexecution_consistency/CONSISTENCY_GATE.json').read_text())
+          prov=json.loads(Path('reproducibility/v1_manifest_provenance/SUPERSESSION.json').read_text())
+
+          assert actual == record == audit['corrected_v1_manifest_sha256'] == prov['corrected_manifest_sha256']
+          assert actual != old
+          assert m['experiment_version'] == 'v1-environment-materialized-1'
+          assert m['execution']['output_root_template'] == 'results/v1/{task_order:02d}-{task_id}/{condition}/{run_id}/'
+          assert m['hash_record_path'] == 'reproducibility/V1_MANIFEST_SHA256.txt'
+          assert hashlib.sha256(Path('reproducibility/v1_task_images.json').read_bytes()).hexdigest() == image
+          assert audit['postprocess_output_root_matches_manifest'] is True
+          assert audit['schedule_condition_count'] == 48
+          assert audit['schedule_unchanged'] is True
+          assert audit['scientific_variable_changed'] is False
+          assert audit['provider_calls'] == 0
+          assert audit['superseded_sha_hardcoded_in_provider_backed_v1_paths'] is False
+          assert audit['frozen_scientific_runner_modified'] is False
+          assert prov['superseded_manifest_sha256'] == old
+          assert prov['provider_calls_during_correction'] == 0
+          print('FINAL_PROVIDER_FREE_CONSISTENCY_GATE=PASS')
+          print('CORRECTED_V1_MANIFEST_SHA256='+actual)
+          print('SCIENTIFIC_VARIABLE_CHANGED=NO')
+          print('PROVIDER_CALLS_DURING_CORRECTION=0')
+          print('PROVIDER_BACKED_V1_LAUNCHED=NO')
+          PY
+
+      - name: Preserve superseded provenance and corrected freeze
+        run: |
+          set -euo pipefail
+          git config user.name chat4-benchmark-bot
+          git config user.email chat4-benchmark-bot@users.noreply.github.com
+          git add \
+            manifests/experiment_manifest.v1.final.json \
+            reproducibility/V1_MANIFEST_SHA256.txt \
+            reproducibility/v1_manifest_provenance/ \
+            reproducibility/v1_preexecution_consistency/
+          git diff --cached --exit-code >/dev/null && { echo 'CORRECTION_COMMIT_MISSING' >&2; exit 1; } || true
+          git commit -m '[CHAT4] correct v1 pre-provider manifest metadata and rebind identity'
+          git push origin HEAD:${GITHUB_REF_NAME}
+          echo CORRECTED_FREEZE_COMMIT=$(git rev-parse HEAD)
+
+      - name: Final stop-before-provider assertion
+        run: |
+          set -euo pipefail
+          test -z "$TOKENROUTER_BASE_URL"
+          test -z "$TOKENROUTER_API_KEY"
+          test -z "$OPENAI_API_KEY"
+          echo G3_G9_RERUN=NO
+          echo IMAGE_REBUILD=NO
+          echo PROVIDER_CALLS_DURING_CORRECTION=0
+          echo READY_FOR_PROVIDER_EXECUTION=YES
+          echo PROVIDER_BACKED_V1_LAUNCHED=NO
