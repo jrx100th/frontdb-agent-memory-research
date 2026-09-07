@@ -8,7 +8,7 @@ on:
       - .github/workflows/chat4-v1-authorized-launch.yml
 
 permissions:
-  contents: write
+  contents: read
   actions: write
 
 concurrency:
@@ -24,30 +24,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Verify accepted base and freeze inputs
+      - name: Verify accepted base, frozen identities, and exact generator output
         run: |
           set -euo pipefail
           git merge-base --is-ancestor e026af015c0465617fbe9ef97f6f9134d95c874b HEAD
           test "$(sha256sum manifests/experiment_manifest.v1.final.json | awk '{print $1}')" = "a414c3b24f3cb6fbb6098e51c5b380786e4b95ae5ca43977b8c4337afe227a64"
           test "$(cat reproducibility/V1_MANIFEST_SHA256.txt)" = "a414c3b24f3cb6fbb6098e51c5b380786e4b95ae5ca43977b8c4337afe227a64"
           test "$(sha256sum reproducibility/v1_task_images.json | awk '{print $1}')" = "2b2e05f1e6434e67767d6fe42b51e353a56ad5f275a320fe81f79a9fa9ca6d96"
-      - name: Generate exact accepted 48-condition workflow
-        run: |
-          set -euo pipefail
-          python benchmark_execution/v1_generate_execution_workflow.py --output .github/workflows/chat4-v1-execute-frozen-benchmark.yml
+          python benchmark_execution/v1_generate_execution_workflow.py --output /tmp/expected-v1.yml
+          cmp /tmp/expected-v1.yml .github/workflows/chat4-v1-execute-frozen-benchmark.yml
           test "$(grep -c 'Execute exactly one frozen v1 task-condition' .github/workflows/chat4-v1-execute-frozen-benchmark.yml)" -eq 48
           grep -q '^  group: chat4-v1-frozen-benchmark$' .github/workflows/chat4-v1-execute-frozen-benchmark.yml
           grep -q '^  cancel-in-progress: false$' .github/workflows/chat4-v1-execute-frozen-benchmark.yml
           ! grep -q '^  push:' .github/workflows/chat4-v1-execute-frozen-benchmark.yml
-      - name: Commit generated workflow only
-        run: |
-          set -euo pipefail
-          git config user.name chat4-benchmark-bot
-          git config user.email chat4-benchmark-bot@users.noreply.github.com
-          git add .github/workflows/chat4-v1-execute-frozen-benchmark.yml
-          git diff --cached --quiet && { echo GENERATED_WORKFLOW_ALREADY_PRESENT=YES; exit 0; }
-          git commit -m "[CHAT4] materialize accepted 48-condition v1 execution workflow"
-          git push origin HEAD:chat4/v1-provider-execution-20260907
       - name: Dispatch authorized provider-backed V1
         env:
           GH_TOKEN: ${{ github.token }}
